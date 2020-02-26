@@ -68,15 +68,17 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         # INIT REPLAY BUFFER
         self.burn_in_memory()
 
-        #If our method, train the classifier on INIT replay buffer.
-        if not self.rl_on_real:
-            self.trainer.classifier_init_training( self.sim_replay_buffer,self.real_replay_buffer)
+        #If our method: train the classifier on INIT replay buffer.
+        if not self.rl_on_real and self.num_sim_steps_at_init and self.num_real_steps_at_init :
+            sim_init_memory=self.sim_replay_buffer.random_batch(self.num_sim_steps_at_init )
+            real_init_memory=self.real_replay_buffer.random_batch(self.num_real_steps_at_init)
+            self.trainer.classifier_init_training( sim_init_memory, real_init_memory)
         
         #TRAIN SAC 
         # for num_epochs(default 3000), evaluate 
         for epoch in gt.timed_for(range(self._start_epoch, self.num_epochs),save_itrs=True,):
             
-            # collect real env evaluate steps #TODO where is it getting used?
+            # collect real env evaluate steps #TODO understand how they are evaluating
             self.evaluate()
 
             #for train_loops_per_epoch(SAC default: 1000, my default:1), collect more data on sim/real as per the requirements and add it in the buffer)
@@ -93,10 +95,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
                     else:
                         train_data = self.sim_replay_buffer.random_batch(self.batch_size)
-                        classifier_train_data=torch.cat((self.sim_replay_buffer.random_batch(self.batch_size),
-                                                        self.real_replay_buffer.random_batch(self.batch_size)),0)
                         self.trainer.train(train_data)
-                        self.trainer.classifier.classifier_train_from_torch(classifier_train_data, num_classifier_train_steps_per_iter)
+                        self.trainer.classifier_train_from_torch(
+                                self.sim_replay_buffer.random_batch(self.batch_size),
+                                self.real_replay_buffer.random_batch(self.batch_size)
+                                )
 
                 gt.stamp('training', unique=False)
                 self.training_mode(False)

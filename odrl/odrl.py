@@ -252,15 +252,16 @@ def experiment(variant):
         real_data_collector=real_path_collector,
         sim_replay_buffer=sim_replay_buffer,
         real_replay_buffer= real_replay_buffer,
-        num_real_steps_at_init=1000,
-        num_sim_steps_at_init=0,
+        num_real_steps_at_init=10000,
+        num_sim_steps_at_init=10000,
         num_real_steps_per_epoch=100,
-        num_sim_steps_per_epoch=0,
+        num_sim_steps_per_epoch=100,
         num_rl_train_steps_per_iter=1,
 
-        rl_on_real=True,
-        modify_reward=False,
-        num_classifier_train_steps_per_iter=1
+        rl_on_real=False,
+        modify_reward=True,
+        num_classifier_train_steps_per_iter=1,
+        num_train_loops_per_epoch=1
 
         
     )
