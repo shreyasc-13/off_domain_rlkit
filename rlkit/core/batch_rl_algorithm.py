@@ -4,7 +4,7 @@ import gtimer as gt
 from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import PathCollector
-
+from classifiers import classifier
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
@@ -66,14 +66,14 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def _train(self):
 
         # INIT REPLAY BUFFER
-        self.burn_in_memory()
+        self.SAC_burn_in_memory()
 
         #If our method: train the classifier on INIT replay buffer.
         if not self.rl_on_real and self.num_sim_steps_at_init and self.num_real_steps_at_init :
             sim_init_memory=self.sim_replay_buffer.random_batch(self.num_sim_steps_at_init )
             real_init_memory=self.real_replay_buffer.random_batch(self.num_real_steps_at_init)
-            self.trainer.classifier_init_training( sim_init_memory, real_init_memory)
-        
+            self.classifier=classifier()
+            self.classifier.classifier_init_training( sim_init_memory,real_init_memory, init_classifier_batch_size=self.batch_size, num_epochs=50)
         #TRAIN SAC 
         # for num_epochs(default 3000), evaluate 
         for epoch in gt.timed_for(range(self._start_epoch, self.num_epochs),save_itrs=True,):
@@ -95,11 +95,12 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
                     else:
                         train_data = self.sim_replay_buffer.random_batch(self.batch_size)
-                        self.trainer.train(train_data)
-                        self.trainer.classifier_train_from_torch(
+                        self.trainer.train(train_data, classifier=self.classifier.SAS_Network.Network)
+                        self.classifier.classifier_train_from_batch(
                                 self.sim_replay_buffer.random_batch(self.batch_size),
                                 self.real_replay_buffer.random_batch(self.batch_size)
                                 )
+
 
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
@@ -109,7 +110,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
 
 
-    def burn_in_memory(self):
+    def SAC_burn_in_memory(self):
         # Filling real replay buffer at the start with the real world steps
         if self.num_real_steps_at_init:
             init_real_expl_paths = self.real_data_collector.collect_new_paths(
@@ -164,3 +165,4 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
 
 
+ 

@@ -34,10 +34,10 @@ class TorchTrainer(Trainer, metaclass=abc.ABCMeta):
     def __init__(self):
         self._num_train_steps = 0
 
-    def train(self, np_batch, modify_reward=False):
+    def train(self, np_batch, modify_reward=False, classifier=None):
         self._num_train_steps += 1
         batch = np_to_pytorch_batch(np_batch)
-        self.train_from_torch(batch, modify_reward)
+        self.train_from_torch(batch, modify_reward, classifier)
 
     def get_diagnostics(self):
         return OrderedDict([
