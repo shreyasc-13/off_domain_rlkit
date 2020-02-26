@@ -81,11 +81,8 @@ def recursive_items(dictionary):
 
 
 def save_experiment_data(dictionary, log_dir):
-<<<<<<< HEAD
     print(log_dir)
     print(dictionary.keys())
-=======
->>>>>>> 90195b24604f513403e4d0fe94db372d16700523
     with open(log_dir + '/experiment.pkl', 'wb') as handle:
         pickle.dump(dictionary, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
