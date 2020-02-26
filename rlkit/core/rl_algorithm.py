@@ -27,20 +27,32 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             trainer,
             exploration_env,
             evaluation_env,
+<<<<<<< HEAD
             sim_data_collector: DataCollector,
             real_data_collector: DataCollector,
             evaluation_data_collector: DataCollector,
             sim_replay_buffer: ReplayBuffer,
             real_replay_buffer: ReplayBuffer
+=======
+            exploration_data_collector: DataCollector,
+            evaluation_data_collector: DataCollector,
+            replay_buffer: ReplayBuffer,
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
     ):
         self.trainer = trainer
         self.expl_env = exploration_env
         self.eval_env = evaluation_env
+<<<<<<< HEAD
         self.sim_data_collector = sim_data_collector
         self.real_data_collector = real_data_collector
         self.eval_data_collector = evaluation_data_collector
         self.sim_replay_buffer = sim_replay_buffer
         self.real_replay_buffer= real_replay_buffer
+=======
+        self.expl_data_collector = exploration_data_collector
+        self.eval_data_collector = evaluation_data_collector
+        self.replay_buffer = replay_buffer
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
         self._start_epoch = 0
 
         self.post_epoch_funcs = []
@@ -61,11 +73,17 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         gt.stamp('saving')
         self._log_stats(epoch)
 
+<<<<<<< HEAD
         self.sim_data_collector.end_epoch(epoch)
         self.real_data_collector.end_epoch(epoch)
         self.eval_data_collector.end_epoch(epoch)
         self.sim_replay_buffer.end_epoch(epoch)
         self.real_replay_buffer.end_epoch(epoch)
+=======
+        self.expl_data_collector.end_epoch(epoch)
+        self.eval_data_collector.end_epoch(epoch)
+        self.replay_buffer.end_epoch(epoch)
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
         self.trainer.end_epoch(epoch)
 
         for post_epoch_func in self.post_epoch_funcs:
@@ -75,6 +93,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         snapshot = {}
         for k, v in self.trainer.get_snapshot().items():
             snapshot['trainer/' + k] = v
+<<<<<<< HEAD
         for k, v in self.sim_data_collector.get_snapshot().items():
             snapshot['sim_exploration/' + k] = v
         for k, v in self.real_data_collector.get_snapshot().items():
@@ -89,6 +108,16 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
 
     #FIXLOGGER
+=======
+        for k, v in self.expl_data_collector.get_snapshot().items():
+            snapshot['exploration/' + k] = v
+        for k, v in self.eval_data_collector.get_snapshot().items():
+            snapshot['evaluation/' + k] = v
+        for k, v in self.replay_buffer.get_snapshot().items():
+            snapshot['replay_buffer/' + k] = v
+        return snapshot
+
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
     def _log_stats(self, epoch):
         logger.log("Epoch {} finished".format(epoch), with_timestamp=True)
 
@@ -96,7 +125,11 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         Replay Buffer
         """
         logger.record_dict(
+<<<<<<< HEAD
             self.sim_replay_buffer.get_diagnostics(),
+=======
+            self.replay_buffer.get_diagnostics(),
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
             prefix='replay_buffer/'
         )
 
@@ -109,10 +142,17 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         Exploration
         """
         logger.record_dict(
+<<<<<<< HEAD
             self.sim_data_collector.get_diagnostics(),
             prefix='exploration/'
         )
         expl_paths = self.sim_data_collector.get_epoch_paths()
+=======
+            self.expl_data_collector.get_diagnostics(),
+            prefix='exploration/'
+        )
+        expl_paths = self.expl_data_collector.get_epoch_paths()
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
         if hasattr(self.expl_env, 'get_diagnostics'):
             logger.record_dict(
                 self.expl_env.get_diagnostics(expl_paths),

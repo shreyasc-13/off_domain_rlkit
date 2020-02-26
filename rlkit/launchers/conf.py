@@ -4,17 +4,27 @@ Copy this file to config.py and modify as needed.
 import os
 from os.path import join
 import rlkit
+<<<<<<< HEAD
+=======
+
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
 """
 `doodad.mount.MountLocal` by default ignores directories called "data"
 If you're going to rename this directory and use EC2, then change
 `doodad.mount.MountLocal.filter_dir`
 """
 # The directory of the project, not source
+<<<<<<< HEAD
 rlkit_project_dir = join(os.path.dirname(rlkit.__file__))
 LOCAL_LOG_DIR = join(rlkit_project_dir, 'data')
 # print(LOCAL_LOG_DIR)
 # import pdb
 # pdb.set_trace()
+=======
+rlkit_project_dir = join(os.path.dirname(rlkit.__file__), os.pardir)
+LOCAL_LOG_DIR = join(rlkit_project_dir, 'data')
+
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
 """
 ********************************************************************************
 ********************************************************************************

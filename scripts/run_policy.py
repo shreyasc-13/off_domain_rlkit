@@ -1,4 +1,5 @@
 from rlkit.samplers.rollout_functions import rollout
+<<<<<<< HEAD
 import os
 import sys
 # import sys
@@ -22,6 +23,8 @@ import gym.spaces
 import networkx as nx
 import sys
 
+=======
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
 from rlkit.torch.pytorch_util import set_gpu_mode
 import argparse
 import torch
@@ -30,6 +33,7 @@ from rlkit.core import logger
 
 filename = str(uuid.uuid4())
 
+<<<<<<< HEAD
 WALLS = {
         'Small':
                 np.array([[0, 0, 0, 0, 0, 0, 0 ],
@@ -169,6 +173,10 @@ def plot_env(env, env_name):
 
 def simulate_policy(args):
     print(args.file)
+=======
+
+def simulate_policy(args):
+>>>>>>> 90195b24604f513403e4d0fe94db372d16700523
     data = torch.load(args.file)
     policy = data['evaluation/policy']
     env = data['evaluation/env']
