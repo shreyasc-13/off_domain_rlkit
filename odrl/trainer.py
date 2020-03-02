@@ -104,7 +104,8 @@ class SACTrainer(TorchTrainer):
             classifier_input=  torch.cat((classifier_input, next_obs), 1)
             outSAS=classifier(classifier_input)
             deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
-            rewards=(alpha*rewards+deltaR)/(alpha+1)
+
+            rewards=rewards+deltaR
         """
         Policy and Alpha Loss
         """
@@ -182,12 +183,14 @@ class SACTrainer(TorchTrainer):
 
             """
             policy_loss = (log_pi - q_new_actions).mean()
-
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
+            #gives values to qf1_loss, qf2_loss,
+            #gives mean, std, max, min values of q1_pred, q2_pred, q_target, log_pi, policy_mean, policy_log_std
+            # gives values of alpha and alpha loss
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q1 Predictions',
                 ptu.get_numpy(q1_pred),

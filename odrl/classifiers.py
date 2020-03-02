@@ -3,6 +3,7 @@ from torch import nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import  ReduceLROnPlateau
+from collections import OrderedDict
 
 cuda = torch.cuda.is_available()
 device = torch.device("cuda" if cuda else "cpu")
@@ -24,18 +25,10 @@ def get_data(sim_memory,real_memory):
 def mixer(X, X1):
     X2=torch.cat((X,X1), 0)
     Y=torch.Tensor([[0] for i in range(len(X))])
-    Y1=torch.Tensor([[1] for i in range(len(X))])
+    Y1=torch.Tensor([[1] for i in range(len(X1))])
     Y2=torch.cat((Y,Y1),0)
-
     XY=torch.cat((X2,Y2),1)
     XYshuffled=XY[torch.randperm(XY.shape[0])]
-    # X2=copy.deepcopy(X)
-    # Y2=copy.deepcopy(Y)
-    # torch.cat((Y2,Y1),0)
-
-    # data = list(zip(X2, Y2))
-    # random.shuffle(data)
-    # X2, Y2 = zip(*data)
     return  XYshuffled[:,0:6],XYshuffled[:,-1]  
 
 
@@ -150,7 +143,7 @@ class  Networks(object ):
         print("training")
         self.Network.train()
         self.Network.to(device)
-
+        # train_epoch_loss=[0]
         loss=10e14
         epoch=0     
         while(not self.early_stop(loss) and epoch<max_epoch):
@@ -159,13 +152,14 @@ class  Networks(object ):
             train_loss = 0
             train_acc = 0
             for batch_idx, (data, label) in enumerate(self.train_loader):
-                self.train(data, label)
+                train_loss, train_acc=self.train(data, label)
             loss=self.validate(epoch)
             epoch+=1
 
         # if save_data:
         #   self.save_models()
         #   save_pickle( self.model_name+"metrics.pkl", self.metrics)
+        
         return
 
     def train(self, data, label):
@@ -180,9 +174,8 @@ class  Networks(object ):
         loss.backward()
         predictions=out[:,1]>0.5
         acc = ((predictions.long() == label).float().sum())/len(label)
-
-        print("mini_batch train loss: ", loss.data, " Train Accuracy",acc)
         self.optimizer.step()
+        return loss.data, acc
 
 
 class classifier:
@@ -191,6 +184,9 @@ class classifier:
         self.SAS_model.apply(init_model)
         self.SAS_optimizer= torch.optim.Adam(self.SAS_model.parameters(), lr=10e-3)
         self.SAS_scheduler= ReduceLROnPlateau(self.SAS_optimizer, 'min')
+        self._train_loss=[]
+        self._train_acc=[]
+
 
     def  classifier_init_training(self, sim_replay_buffer,real_replay_buffer, init_classifier_batch_size, num_epochs):
         self.batch_size=init_classifier_batch_size
@@ -208,6 +204,7 @@ class classifier:
                                     model_name="SAS"
                                     ) 
         self.SAS_Network.init_train(num_epochs)
+
         # return SAS_Network
 
  
@@ -216,9 +213,17 @@ class classifier:
         real_SAS_in = convert_to_SAS_input_form(real_batch)
         data=torch.cat((sim_SAS_in, real_SAS_in), 0)
         label=torch.cat((torch.Tensor([0]*len(sim_SAS_in)), torch.Tensor([1]*len(real_SAS_in))), 0)
-        self.SAS_Network.train(data, label)
+        loss, acc=self.SAS_Network.train(data, label)
+        self._train_loss.append(loss), self._train_acc.append(acc)
 
 
+    def get_diagnostics(self):
+        loss=torch.mean(torch.Tensor(self._train_loss))
+        acc=torch.mean(torch.Tensor(self._train_acc))
+        # print("Classifier Train loss",self._train_loss," Classifier Train acc", self._train_acc)
+        res=OrderedDict([('SAS classifier train loss',loss.data[0] ), ('SAS classifier train acc', acc.data[0] )])
+        self._train_loss, self._train_acc=[],[]
+        return res
 
 class SAS_loader(Dataset):
     def __init__(self, X, Y):

@@ -1,12 +1,5 @@
-# from gym.envs.mujoco impo/rt HalfCheetahEnv
 import os
 import sys
-# import sys
-# print(sys.path)
-# currentdir = os.path.dirname(os.path.realpath(__file__))
-# parentdir = os.path.dirname(currentdir)
-# grandparentdir=os.path.dirname(parentdir)
-# sys.path.append(grandparentdir)
 import torch.nn as nn
 import torch
 import numpy as np
@@ -21,17 +14,20 @@ from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from pointenv import * 
 
-
 def experiment(variant):
     # import pdb
     # pdb.set_trace()
     sim_env_name='Small'
     real_env_name = 'Maze7x7' 
-    expl_env = PointEnv(walls=sim_env_name)
-    eval_env = PointEnv(walls=real_env_name)
-    obs_dim = expl_env.observation_space.low.size
-    action_dim = expl_env.action_space.low.size
-
+    tolerance=variant["tolerance"]
+    sparse=variant["sparse"]
+    sim_expl_env = PointEnv(sim_env_name, sparse, tolerance)
+    sim_eval_env = PointEnv(sim_env_name, sparse, tolerance)
+    real_expl_env = PointEnv(real_env_name, sparse, tolerance)
+    real_eval_env = PointEnv(real_env_name, sparse, tolerance)
+    obs_dim = sim_expl_env.observation_space.low.size
+    action_dim = sim_expl_env.action_space.low.size
+    max_episode_steps=variant['algorithm_kwargs']['max_episode_length']
     M = variant['layer_size']
     qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
@@ -58,29 +54,33 @@ def experiment(variant):
         action_dim=action_dim,
         hidden_sizes=[M, M],
     )
-    eval_policy = MakeDeterministic(policy)
+    # eval_policy = MakeDeterministic(policy)
     eval_path_collector = MdpPathCollector(
-        eval_env,
-        eval_policy,
+        real_eval_env,
+        policy,
+        max_episode_steps
     )
     real_path_collector = MdpPathCollector(
-        eval_env,
+        real_expl_env,
         policy,
+        max_episode_steps
     )
     sim_path_collector = MdpPathCollector(
-        expl_env,
+        sim_expl_env,
         policy,
+        max_episode_steps
     )
     sim_replay_buffer= EnvReplayBuffer(
         variant['replay_buffer_size'],
-        expl_env,
+        sim_expl_env,
     )
     real_replay_buffer= EnvReplayBuffer(
         variant['replay_buffer_size'],
-        eval_env,
+        real_expl_env,
     )
+    trainer_env= real_expl_env if variant['rl_on_real'] ==True else sim_expl_env
     trainer = SACTrainer(
-        env=eval_env,
+        env=trainer_env,
         policy=policy,
         qf1=qf1,
         qf2=qf2,
@@ -90,30 +90,33 @@ def experiment(variant):
     )
     algorithm = TorchBatchRLAlgorithm(
         trainer=trainer,
-        exploration_env=expl_env,
-        evaluation_env=eval_env,
+        sim_exploration_env=sim_expl_env,
+        real_exploration_env=real_expl_env,
+        evaluation_env=real_eval_env,
         batch_size=variant['algorithm_kwargs']['batch_size'],
         max_path_length=variant['algorithm_kwargs']['max_path_length'],
+        max_episode_steps=variant['algorithm_kwargs']['max_episode_length'],
         num_epochs=variant['algorithm_kwargs']['num_epochs'],
         num_eval_steps_per_epoch=variant['algorithm_kwargs']['num_eval_steps_per_epoch'],
         num_trains_per_train_loop=variant['algorithm_kwargs']['num_trains_per_train_loop'],
-
         evaluation_data_collector=eval_path_collector,
         sim_data_collector= sim_path_collector,
         real_data_collector=real_path_collector,
         sim_replay_buffer=sim_replay_buffer,
         real_replay_buffer= real_replay_buffer,
-        num_real_steps_at_init=10000,
-        num_sim_steps_at_init=10000,
-        num_real_steps_per_epoch=100,
-        num_sim_steps_per_epoch=100,
+        num_real_steps_at_init=     1000    if variant['rl_on_real'] else 10000,
+        num_sim_steps_at_init=      0       if variant['rl_on_real'] else 10000,
+        num_real_steps_per_epoch=   500     if variant['rl_on_real'] else 100 if variant['num_classifier_train_steps_per_iter'] else 0,
+        num_sim_steps_per_epoch=    0       if variant['rl_on_real'] else 500,
         num_rl_train_steps_per_iter=1,
 
-        rl_on_real=False,
-        modify_reward=True,
-        num_classifier_train_steps_per_iter=1,
-        num_train_loops_per_epoch=1
-
+        rl_on_real=variant['rl_on_real'],
+        modify_reward=False if variant['rl_on_real']==True else True,
+        num_classifier_train_steps_per_iter=variant['num_classifier_train_steps_per_iter'],
+        num_train_loops_per_epoch=1,
+        num_classifier_init_epoch=variant['num_classifier_init_epoch'],
+        classifier_batch_size=512,
+        tolerance=tolerance,
         
     )
     algorithm.to(ptu.device)
@@ -122,12 +125,6 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    # noinspection PyTypeChecker
-
-    # classifier= Network(input_size = 6, output_size = 2, unit_count = SAS_unit_count)
-    # state_dict=torch.load('/home/swapnil/DRL/offDyna/odrl/data/SASNetwork.pt',map_location='cpu')
-    # classifier.load_state_dict(state_dict)
-
 
     variant = dict(
         algorithm="SAC",
@@ -135,15 +132,16 @@ if __name__ == "__main__":
         layer_size=256,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=3000,
+            num_epochs=60,
             num_eval_steps_per_epoch=5000,
             num_trains_per_train_loop=1000,
-            num_expl_steps_per_train_loop=1000,
-            min_num_steps_before_training=1000,
+            # num_expl_steps_per_train_loop=1000,
+            # min_num_steps_before_training=1000,
             max_path_length=1000,
+            max_episode_length=50,
             batch_size=256,
-        ),
-        trainer_kwargs=dict(
+        ),   
+        trainer_kwargs=dict( 
             discount=0.99,
             soft_target_tau=5e-3,
             target_update_period=1,
@@ -152,6 +150,11 @@ if __name__ == "__main__":
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
+        rl_on_real=False,
+        num_classifier_train_steps_per_iter=0,
+        num_classifier_init_epoch=50,
+        sparse=True,
+        tolerance=1
     )
     setup_logger('name-of-experiment', variant=variant)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)

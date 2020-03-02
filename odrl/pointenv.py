@@ -5,6 +5,8 @@ import time
 import tqdm
 import gym.spaces
 import networkx as nx
+import matplotlib.pyplot as plt
+
 WALLS = {
         'Small':
                 np.array([[0, 0, 0, 0, 0, 0, 0 ],
@@ -36,7 +38,7 @@ WALLS = {
 
 class PointEnv(gym.Env):
 
-    def __init__(self, walls=None, resize_factor=1,
+    def __init__(self, walls=None, sparse=False, tolerance=1, resize_factor=1,
                              action_noise=1.0):
         if resize_factor > 1:
             self._walls = resize_walls(WALLS[walls], resize_factor)
@@ -56,6 +58,8 @@ class PointEnv(gym.Env):
                 high=np.array([self._height, self._width]),
                 dtype=np.float32)
         self._step_count=0
+        self.sparse=sparse
+        self.tolerance=tolerance
         self.reset()
 
     def _sample_empty_state(self):
@@ -116,7 +120,10 @@ class PointEnv(gym.Env):
         # self._step_count += 1
         # if self._step_count >= self._duration or ts.is_last():
         #   done=False
-        rew = -1.0 * np.linalg.norm(self.state)
+        if self.sparse:
+            rew = 100 if np.linalg.norm(self.state)<self.tolerance else 0
+        else:
+            rew=-1.0 * np.linalg.norm(self.state)
         return self.state.copy(), rew, done, {}
 
     @property
@@ -126,16 +133,17 @@ class PointEnv(gym.Env):
     def get_env_shape(self):
         return  self._height, self._width, self.action_space, self.observation_space, self._walls
 
-def plot_env(env, env_name):
-    plt.title(env_name)
+def plot_env(env, env_name=None):
+    if env_name:
+        plt.title(env_name)
     height, width, action_space, observation_space, wall= env.get_env_shape()
     for (i, j) in zip(*np.where(wall)):
-        x = np.array([i, i+1]) / float(width)
-        y0 = np.array([j, j]) / float(height)
-        y1 = np.array([j+1, j+1]) / float(height)
+        x = np.array([i, i+1]) #/ float(width)
+        y0 = np.array([j, j]) #/ float(height)
+        y1 = np.array([j+1, j+1])# / float(height)
         plt.fill_between(x, y0, y1, color='grey')
-    plt.xlim([0, 1])
-    plt.ylim([0, 1])
-    plt.xticks([])
-    plt.yticks([])
-    plt.subplots_adjust(wspace=0.1, hspace=0.2)
+    plt.xlim([0, width])
+    plt.ylim([0, height])
+    # plt.xticks([])
+    # plt.yticks([])
+    # plt.subplots_adjust(wspace=0.1, hspace=0.2)

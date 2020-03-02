@@ -10,6 +10,7 @@ class MdpPathCollector(PathCollector):
             self,
             env,
             policy,
+            max_env_steps=50,
             max_num_epoch_paths_saved=None,
             render=False,
             render_kwargs=None,
@@ -25,6 +26,7 @@ class MdpPathCollector(PathCollector):
 
         self._num_steps_total = 0
         self._num_paths_total = 0
+        self.max_env_steps=max_env_steps
 
     def collect_new_paths(
             self,
@@ -42,7 +44,7 @@ class MdpPathCollector(PathCollector):
             path = rollout(
                 self._env,
                 self._policy,
-                max_path_length=max_path_length_this_loop,
+                max_path_length=min(self.max_env_steps,num_steps - num_steps_collected)
             )
             path_len = len(path['actions'])
             if (
@@ -53,6 +55,7 @@ class MdpPathCollector(PathCollector):
                 break
             num_steps_collected += path_len
             paths.append(path)
+            # print(len(paths))
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
@@ -65,16 +68,18 @@ class MdpPathCollector(PathCollector):
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
 
     def get_diagnostics(self):
-        path_lens = [len(path['actions']) for path in self._epoch_paths]
         stats = OrderedDict([
             ('num steps total', self._num_steps_total),
             ('num paths total', self._num_paths_total),
         ])
-        stats.update(create_stats_ordered_dict(
-            "path length",
-            path_lens,
-            always_show_all_stats=True,
-        ))
+        #if collecting paths online.
+        if self._epoch_paths:
+            path_lens =[len(path['actions']) for path in self._epoch_paths]
+            stats.update(create_stats_ordered_dict(
+                "path length",
+                path_lens,
+                always_show_all_stats=True,
+            ))
         return stats
 
     def get_snapshot(self):
