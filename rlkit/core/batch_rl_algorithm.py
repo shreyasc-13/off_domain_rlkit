@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import torch
 from pointenv import plot_env
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D # <--- This is important for 3d plotting 
+
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
@@ -40,7 +42,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_train_loops_per_epoch=1,
             num_classifier_init_epoch=50,
             classifier_batch_size=1024,
-            tolerance=1
+            tolerance=1,
+            plot_episodes_period=10
 
 
     ):
@@ -86,6 +89,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         # self.num_real_steps_total=0
         # self.modify_reward = modify_reward
         self.tolerance=tolerance
+        self.plot_episodes_period=plot_episodes_period
 
 
     def _train(self):
@@ -104,8 +108,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
         # for num_epochs(default 3000), evaluate 
 
-        
-        # self.plot_for_all_epochs() #plot all epoch results
+        self.plot_path_before_training() #plot all epoch results
 
         for epoch in gt.timed_for(range(self._start_epoch, self.num_epochs),save_itrs=True,):
             self.training_SAC=True
@@ -128,7 +131,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     else:
                         train_data = self.sim_replay_buffer.random_batch(self.batch_size)
                         self.trainer.train(train_data,modify_reward=True, classifier=self.classifier.SAS_Network.Network)
-            # self.plot_path_steps(epoch)
             if not self.rl_on_real:
                 #train the classifier with random samples from both the buffers
                 for _ in range(self.num_classifier_train_steps_per_iter):
@@ -140,10 +142,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.training_mode(False)
             self.eval_new_paths=self.evaluate(epoch)
             self._end_epoch(epoch) # logs all statistics
-
+            if not epoch%self.plot_episodes_period:
+                self.plot_path_steps()
         # self.eval_new_paths=self.evaluate(epoch)
         # self._end_epoch(epoch)
-        # plt.show()
+        plt.show()
 
 
     def SAC_burn_in_memory(self):
@@ -213,46 +216,90 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
         return new_sim_paths, new_real_paths
 
-    def plot_for_all_epochs():
+    def plot_path_before_training(self):
         # fig, axes= plt.subplots(nrows=self.num_epochs, ncols=10,figsize=[20,int(((self.num_epochs-1)/5)+1)* 5])
-        # # cols=["SimExpPath0", "RealExpPath0", "RealEvalPath0","SimExpPath1", "RealExpPath1", "RealEvalPath1"]
+        # cols=["SimExpPath0", "RealExpPath0", "RealEvalPath0","SimExpPath1", "RealExpPath1", "RealEvalPath1"]
         # cols=["Ep"+str(epoch+1) for epoch in range(self.num_epochs)]
         # for ax, col in zip(axes[0], cols):
         #     ax.set_title(col, size='small')
         # for ax, col in zip(axes[0], col):
         #     ax.set_ylabel(size='small')
         # plt.suptitle('ODRL Output With Rl On Real: '+str(self.rl_on_real)+
-        #              ", Classifier Training Online: "+ str(self.num_classifier_train_steps_per_iter), 
+        #              ", Classifier Training Online: "+ str(bool(self.num_classifier_train_steps_per_iter)), 
         #              fontsize=20)
         # fig.tight_layout()
-        # plt.show()
+
+        self.fig=plt.figure(figsize=((self.num_epochs+1)/10*6,12))
         # self._end_epoch(-1)
-        pass
+        # self.eval_new_paths=self.evaluate(-1)
+        self.plot_num=0
+        # self.plot_path_steps()
 
-    def plot_path_steps(self, epoch):
+    def plot_path_steps(self):
+
+
          #trying to make a plot of all epocs
-        for k in range(self.num_epochs):
-            for i in range(min(2,len(self.sim_new_paths))):
-                plt.subplot(self.num_epochs,6,epoch*6+(i*3+1))
-                plt.subplot(self.num_epochs,6,epoch*6+(i*3+1))
-                plt.subplot(self.num_epochs,6,epoch*6+(i*3+1))
-
-        # for i in range(min(2,len(self.sim_new_paths))):
-            sim_states=self.sim_new_paths[i]["next_observations"]
-            real_states=self.real_new_paths[i]["next_observations"]
+        self.plot_num+=1
+        num_paths=15
+        num_cols=int(self.num_epochs/self.plot_episodes_period)
+        colormap = plt.cm.gist_ncar
+        plt.gca().set_color_cycle([colormap(i) for i in np.linspace(0, 0.9, num_paths)])
+        plt.subplot(2, num_cols, self.plot_num)
+        #plot 1st 8 episodes.
+        for i in range(min(num_paths,len(self.eval_new_paths))):
             eval_states=self.eval_new_paths[i]["next_observations"]
-            # print(len(sim_states), len(real_states), len(eval_states))
-            plot_env(self.evaluation_env)
-            plt.subplot(2, self.num_epochs,epoch*2+(i+1))
-            # plot_env(self.sim_exploration_env)
-            plt.plot(sim_states[:,0].tolist(),sim_states[:,1].tolist(),"-b.", label="simExplpath")
-            # plt.subplot(self.num_epochs,6,epoch*6+(i*3+2))
-            # plot_env(self.real_exploration_env)
-            plt.plot(real_states[:,0].tolist(),real_states[:,1].tolist(),"-r.", label="realExpPath")
-            # plt.subplot(self.num_epochs,6,epoch*6+(i*3+3))
-            plt.plot(eval_states[:,0].tolist(),eval_states[:,1].tolist(),"-y.", label="valEvalPath")
-
-
-
-
+            plt.plot(eval_states[:,0].tolist(),eval_states[:,1].tolist(),"-")
+        #plot the state distribution
+        self.threeD_data_distribution( bin_size=7,
+                                    env_range=[0,7], 
+                                    subplot_num= (2, int((self.num_epochs/self.plot_episodes_period)),self.plot_num+ num_cols),
+                                    title= "RealWorld Evaluation State Distribution")
  
+    def threeD_data_distribution(self,bin_size, env_range, subplot_num, title):
+        ax = self.fig.add_subplot(*subplot_num, projection='3d')
+        # ax.set_title(title)
+
+        next_obs=np.array([self.eval_new_paths[i]["next_observations"] for i in range(len(self.eval_new_paths))])
+        xy=np.concatenate(next_obs, axis=0)
+        # import pdb
+        # pdb.set_trace()
+        hist, xedges, yedges = np.histogram2d(xy[:,0], xy[:,1], bins=bin_size, range=[env_range, env_range])
+        xpos, ypos = np.meshgrid(xedges[:-1] , yedges[:-1], indexing="ij")
+        xpos = xpos.ravel()
+        ypos = ypos.ravel()
+        zpos = np.zeros_like(xpos)
+        dx = 0.5 * np.ones_like(zpos)
+        dy = dx.copy()
+        dz = hist.flatten()
+        colors = plt.cm.jet(dz/float(dz.max()))
+        ax.bar3d(xpos, ypos, zpos, dx, dy, dz, color=colors, zsort='average')
+
+
+
+
+ #        for k in range(self.num_epochs):
+
+ #            for i in range(min(2,len(self.sim_new_paths))):
+ #                plt.subplot(self.num_epochs,6,epoch*6+(i*3+1))
+ #                plt.subplot(self.num_epochs,6,epoch*6+(i*3+1))
+ #                plt.subplot(self.num_epochs,6,epoch*6+(i*3+1))
+
+ #        # for i in range(min(2,len(self.sim_new_paths))):
+ #            sim_states=self.sim_new_paths[i]["next_observations"]
+ #            real_states=self.real_new_paths[i]["next_observations"]
+ #            eval_states=self.eval_new_paths[i]["next_observations"]
+ #            # print(len(sim_states), len(real_states), len(eval_states))
+ #            plot_env(self.evaluation_env)
+ #            plt.subplot(2, self.num_epochs,epoch*2+(i+1))
+ #            # plot_env(self.sim_exploration_env)
+ #            plt.plot(sim_states[:,0].tolist(),sim_states[:,1].tolist(),"-b.", label="simExplpath")
+ #            # plt.subplot(self.num_epochs,6,epoch*6+(i*3+2))
+ #            # plot_env(self.real_exploration_env)
+ #            plt.plot(real_states[:,0].tolist(),real_states[:,1].tolist(),"-r.", label="realExpPath")
+ #            # plt.subplot(self.num_epochs,6,epoch*6+(i*3+3))
+ #            plt.plot(eval_states[:,0].tolist(),eval_states[:,1].tolist(),"-y.", label="valEvalPath")
+
+
+
+
+ # 

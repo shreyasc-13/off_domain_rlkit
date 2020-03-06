@@ -21,8 +21,8 @@ def experiment(variant):
     real_env_name = 'Maze7x7' 
     tolerance=variant["tolerance"]
     sparse=variant["sparse"]
-    sim_expl_env = PointEnv(sim_env_name, sparse, tolerance)
-    sim_eval_env = PointEnv(sim_env_name, sparse, tolerance)
+    sim_expl_env  = PointEnv(sim_env_name,  sparse, tolerance)
+    sim_eval_env  = PointEnv(sim_env_name,  sparse, tolerance)
     real_expl_env = PointEnv(real_env_name, sparse, tolerance)
     real_eval_env = PointEnv(real_env_name, sparse, tolerance)
     obs_dim = sim_expl_env.observation_space.low.size
@@ -117,6 +117,8 @@ def experiment(variant):
         num_classifier_init_epoch=variant['num_classifier_init_epoch'],
         classifier_batch_size=512,
         tolerance=tolerance,
+        plot_episodes_period=1 if variant['algorithm_kwargs']['num_epochs']<5 else int(variant['algorithm_kwargs']['num_epochs']/5)
+
         
     )
     algorithm.to(ptu.device)
@@ -132,7 +134,7 @@ if __name__ == "__main__":
         layer_size=256,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=60,
+            num_epochs=50,
             num_eval_steps_per_epoch=5000,
             num_trains_per_train_loop=1000,
             # num_expl_steps_per_train_loop=1000,
@@ -150,13 +152,15 @@ if __name__ == "__main__":
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
-        rl_on_real=False,
+        rl_on_real=True,
         num_classifier_train_steps_per_iter=0,
-        num_classifier_init_epoch=50,
+        num_classifier_init_epoch=0,
         sparse=True,
-        tolerance=1
+        tolerance=1,#needed for rewards if sparse, and also for calculating accuracy\
+        # num_plots=5
+
     )
     setup_logger('name-of-experiment', variant=variant)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
-    experiment(variant)
+    experiment(variant) 
 

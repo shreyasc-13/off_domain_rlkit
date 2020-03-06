@@ -178,6 +178,8 @@ class  Networks(object ):
         return loss.data, acc
 
 
+
+
 class classifier:
     def __init__( self, init_classifier_batch_size=1024):
         self.SAS_model = Network(input_size =6, output_size = 2, unit_count = 32)
@@ -186,6 +188,8 @@ class classifier:
         self.SAS_scheduler= ReduceLROnPlateau(self.SAS_optimizer, 'min')
         self._train_loss=[]
         self._train_acc=[]
+
+
 
 
     def  classifier_init_training(self, sim_replay_buffer,real_replay_buffer, init_classifier_batch_size, num_epochs):
