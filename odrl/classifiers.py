@@ -4,7 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import  ReduceLROnPlateau
 from collections import OrderedDict
-
+import math
 cuda = torch.cuda.is_available()
 device = torch.device("cuda" if cuda else "cpu")
 
@@ -176,21 +176,36 @@ class  Networks(object ):
         acc = ((predictions.long() == label).float().sum())/len(label)
         self.optimizer.step()
         return loss.data, acc
+        
 
+class SAS_hardcode():
+    def __init__(self,sim_env, real_env ):
+        self.sim_env=sim_env 
+        self.real_env=real_env
 
+    def predict(self, SAS_input):
+        import pdb
+        state=SAS_input[:, 0:1]
+        next_states=SAS_input[:, 3:4]
+        p_real=math.exp(-200)*torch.Tensor(
+                            [ 1 if(
+                            self.real_env._is_blocked(state[i].data[0]) or self.real_env._is_blocked(next_states[i].data[0]) ) 
+                            else 0 for i in range(len(state)) ])  
+        p_real[p_real==0]=0.5  #0.5 chance of real or fake
 
+        return torch.cat([p_real[:, None], (1 - p_real)[:,None]], dim=1)#torch.cat((1-p_real, p_real), axis=-1)
 
 class classifier:
-    def __init__( self, init_classifier_batch_size=1024):
-        self.SAS_model = Network(input_size =6, output_size = 2, unit_count = 32)
-        self.SAS_model.apply(init_model)
-        self.SAS_optimizer= torch.optim.Adam(self.SAS_model.parameters(), lr=10e-3)
-        self.SAS_scheduler= ReduceLROnPlateau(self.SAS_optimizer, 'min')
-        self._train_loss=[]
-        self._train_acc=[]
-
-
-
+    def __init__( self,  init_classifier_batch_size=1024,hardcode=False, real_env=None,  sim_env=None):
+        if hardcode==True:
+            self.SAS_hardcode=SAS_hardcode(sim_env, real_env)
+        else:
+            self.SAS_model = Network(input_size =6, output_size = 2, unit_count = 32)
+            self.SAS_model.apply(init_model)
+            self.SAS_optimizer= torch.optim.Adam(self.SAS_model.parameters(), lr=10e-3)
+            self.SAS_scheduler= ReduceLROnPlateau(self.SAS_optimizer, 'min')
+            self._train_loss=[]
+            self._train_acc=[]
 
     def  classifier_init_training(self, sim_replay_buffer,real_replay_buffer, init_classifier_batch_size, num_epochs):
         self.batch_size=init_classifier_batch_size

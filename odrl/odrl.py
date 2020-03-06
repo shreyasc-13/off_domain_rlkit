@@ -86,6 +86,7 @@ def experiment(variant):
         qf2=qf2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
+        # hardcode_classifier=variant['hardcode_classifier'],
         **variant['trainer_kwargs']
     )
     algorithm = TorchBatchRLAlgorithm(
@@ -117,9 +118,8 @@ def experiment(variant):
         num_classifier_init_epoch=variant['num_classifier_init_epoch'],
         classifier_batch_size=512,
         tolerance=tolerance,
-        plot_episodes_period=1 if variant['algorithm_kwargs']['num_epochs']<5 else int(variant['algorithm_kwargs']['num_epochs']/5)
-
-        
+        plot_episodes_period=1 if variant['algorithm_kwargs']['num_epochs']<5 else int(variant['algorithm_kwargs']['num_epochs']/5),
+        hardcode_classifier=variant['hardcode_classifier']
     )
     algorithm.to(ptu.device)
     algorithm.train()
@@ -152,12 +152,12 @@ if __name__ == "__main__":
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
-        rl_on_real=True,
+        rl_on_real=False,
         num_classifier_train_steps_per_iter=0,
-        num_classifier_init_epoch=0,
+        num_classifier_init_epoch=50,
         sparse=True,
         tolerance=1,#needed for rewards if sparse, and also for calculating accuracy\
-        # num_plots=5
+        hardcode_classifier=True        
 
     )
     setup_logger('name-of-experiment', variant=variant)

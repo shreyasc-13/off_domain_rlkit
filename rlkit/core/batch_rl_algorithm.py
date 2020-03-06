@@ -43,7 +43,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_classifier_init_epoch=50,
             classifier_batch_size=1024,
             tolerance=1,
-            plot_episodes_period=10
+            plot_episodes_period=10,
+            hardcode_classifier=False
 
 
     ):
@@ -90,7 +91,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         # self.modify_reward = modify_reward
         self.tolerance=tolerance
         self.plot_episodes_period=plot_episodes_period
-
+        self.hardcode_classifier=hardcode_classifier
 
     def _train(self):
 
@@ -102,8 +103,14 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         if not self.rl_on_real and self.num_sim_steps_at_init and self.num_real_steps_at_init :
             sim_init_memory=self.sim_replay_buffer.random_batch(self.num_sim_steps_at_init )
             real_init_memory=self.real_replay_buffer.random_batch(self.num_real_steps_at_init)
-            self.classifier=classifier()
-            self.classifier.classifier_init_training( sim_init_memory,real_init_memory, init_classifier_batch_size=self.classifier_batch_size, num_epochs=self.num_classifier_init_epoch)
+
+            if self.hardcode_classifier:
+                self.classifier=classifier(hardcode=self.hardcode_classifier,  real_env=self.real_exploration_env, sim_env=self.sim_exploration_env,)
+            else:
+                self.classifier=classifier()
+                self.classifier.classifier_init_training( sim_init_memory,real_init_memory, 
+                                                            init_classifier_batch_size=self.classifier_batch_size, 
+                                                            num_epochs=self.num_classifier_init_epoch)
         
 
         # for num_epochs(default 3000), evaluate 
@@ -130,8 +137,15 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
                     else:
                         train_data = self.sim_replay_buffer.random_batch(self.batch_size)
-                        self.trainer.train(train_data,modify_reward=True, classifier=self.classifier.SAS_Network.Network)
-            if not self.rl_on_real:
+                        if not self.hardcode_classifier:
+                            self.trainer.train(train_data,
+                                            modify_reward=True, 
+                                            classifier=self.classifier.SAS_Network.Network)
+                        else:
+                            self.trainer.train(train_data,
+                                            modify_reward=True, 
+                                            classifier=self.classifier.SAS_hardcode.predict)
+            if not self.rl_on_real and not self.hardcode_classifier:
                 #train the classifier with random samples from both the buffers
                 for _ in range(self.num_classifier_train_steps_per_iter):
                     self.classifier.classifier_train_from_batch(

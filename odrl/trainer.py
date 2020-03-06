@@ -104,7 +104,6 @@ class SACTrainer(TorchTrainer):
             classifier_input=  torch.cat((classifier_input, next_obs), 1)
             outSAS=classifier(classifier_input)
             deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
-
             rewards=rewards+deltaR
         """
         Policy and Alpha Loss

@@ -7,7 +7,7 @@ import csv
 
 real=pd.read_csv("/home/swapnil/DRL/offDyna/rlkit-master/rlkit/data/name-of-experiment/sparse_real/progress.csv")
 simoffline=pd.read_csv("/home/swapnil/DRL/offDyna/rlkit-master/rlkit/data/name-of-experiment/sparse_offline/progress.csv")
-simonline=pd.read_csv("/home/swapnil/DRL/offDyna/rlkit-master/rlkit/data/name-of-experiment/sparse_online/progress.csv")
+simonline=pd.read_csv("/home/swapnil/DtheRL/offDyna/rlkit-master/rlkit/data/name-of-experiment/sparse_online/progress.csv")
 # simoffline2=pd.read_csv("/home/swapnil/DRL/offDyna/rlkit-master/rlkit/data/name-of-experiment/simoffline6/progress.csv")
 
 rx=real["real_exploration/num steps total"].tolist()
