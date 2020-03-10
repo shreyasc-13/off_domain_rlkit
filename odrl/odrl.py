@@ -55,8 +55,13 @@ def experiment(variant):
         hidden_sizes=[M, M],
     )
     # eval_policy = MakeDeterministic(policy)
-    eval_path_collector = MdpPathCollector(
+    eval_real_path_collector = MdpPathCollector(
         real_eval_env,
+        policy,
+        max_episode_steps
+    )
+    eval_sim_path_collector = MdpPathCollector(
+        sim_eval_env,
         policy,
         max_episode_steps
     )
@@ -93,22 +98,25 @@ def experiment(variant):
         trainer=trainer,
         sim_exploration_env=sim_expl_env,
         real_exploration_env=real_expl_env,
-        evaluation_env=real_eval_env,
+        evaluation_sim_env=sim_eval_env,
+        evaluation_real_env=real_eval_env,
         batch_size=variant['algorithm_kwargs']['batch_size'],
         max_path_length=variant['algorithm_kwargs']['max_path_length'],
         max_episode_steps=variant['algorithm_kwargs']['max_episode_length'],
         num_epochs=variant['algorithm_kwargs']['num_epochs'],
         num_eval_steps_per_epoch=variant['algorithm_kwargs']['num_eval_steps_per_epoch'],
         num_trains_per_train_loop=variant['algorithm_kwargs']['num_trains_per_train_loop'],
-        evaluation_data_collector=eval_path_collector,
+        evaluation_real_data_collector=eval_real_path_collector,
+        evaluation_sim_data_collector=eval_sim_path_collector,
         sim_data_collector= sim_path_collector,
         real_data_collector=real_path_collector,
         sim_replay_buffer=sim_replay_buffer,
         real_replay_buffer= real_replay_buffer,
+
         num_real_steps_at_init=     1000    if variant['rl_on_real'] else 10000,
         num_sim_steps_at_init=      0       if variant['rl_on_real'] else 10000,
         num_real_steps_per_epoch=   500     if variant['rl_on_real'] else 100 if variant['num_classifier_train_steps_per_iter'] else 0,
-        num_sim_steps_per_epoch=    0       if variant['rl_on_real'] else 500,
+        num_sim_steps_per_epoch=    0       if variant['rl_on_real'] else 5000,
         num_rl_train_steps_per_iter=1,
 
         rl_on_real=variant['rl_on_real'],
@@ -134,7 +142,7 @@ if __name__ == "__main__":
         layer_size=256,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=50,
+            num_epochs=21,
             num_eval_steps_per_epoch=5000,
             num_trains_per_train_loop=1000,
             # num_expl_steps_per_train_loop=1000,

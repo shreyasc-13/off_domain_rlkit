@@ -9,7 +9,7 @@ import matplotlib as mpl
 mpl.use('TkAgg')  # or whatever other backend that you want
 import matplotlib.pyplot as plt
 import torch
-from pointenv import plot_env
+# from pointenv import plot_env
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D # <--- This is important for 3d plotting 
 
@@ -18,15 +18,17 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self,
             trainer,
             sim_exploration_env,
-            real_exploration_env,            
-            evaluation_env,
+            real_exploration_env,
+            evaluation_sim_env ,         
+            evaluation_real_env,
             batch_size,
             max_path_length,
             max_episode_steps,
             num_epochs,
             num_eval_steps_per_epoch,
             num_trains_per_train_loop,
-            evaluation_data_collector: PathCollector,
+            evaluation_real_data_collector: PathCollector,
+            evaluation_sim_data_collector: PathCollector,
             sim_data_collector: PathCollector,
             real_data_collector: PathCollector,
             sim_replay_buffer: ReplayBuffer,
@@ -45,8 +47,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             tolerance=1,
             plot_episodes_period=10,
             hardcode_classifier=False
-
-
     ):
 
 
@@ -55,11 +55,12 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             trainer,
             sim_exploration_env,
             real_exploration_env,
-            # exploration_env,
-            evaluation_env,
+            evaluation_sim_env,
+            evaluation_real_env,
             sim_data_collector,
             real_data_collector, 
-            evaluation_data_collector,
+            evaluation_real_data_collector,
+            evaluation_sim_data_collector,
             sim_replay_buffer,
             real_replay_buffer,
             rl_on_real,
@@ -85,7 +86,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_classifier_init_epoch= num_classifier_init_epoch
         self.sim_exploration_env=sim_exploration_env
         self.real_exploration_env=real_exploration_env
-        self.evaluation_env=evaluation_env
+        # self.evaluation_env=evaluation_env
         self.training_SAC=False
         # self.num_real_steps_total=0
         # self.modify_reward = modify_reward
@@ -154,17 +155,17 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         )
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
-            self.eval_new_paths=self.evaluate(epoch)
+            self.evaluate(epoch)
+
             self._end_epoch(epoch) # logs all statistics
             if not epoch%self.plot_episodes_period:
-                self.plot_path_steps()
+                self.plot_path_steps(epoch)
         # self.eval_new_paths=self.evaluate(epoch)
         # self._end_epoch(epoch)
         plt.show()
 
 
     def SAC_burn_in_memory(self):
-
         # Filling real replay buffer at the start with the real world steps
         if self.num_real_steps_at_init:
             init_real_expl_paths = self.real_data_collector.collect_new_paths(
@@ -188,19 +189,33 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.sim_data_collector.end_epoch(-1)
 
     def evaluate(self, epoch):
-        eval_paths=self.eval_data_collector.collect_new_paths(
+        self.eval_real_new_paths=self.eval_real_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_eval_steps_per_epoch,
                 discard_incomplete_paths=False,
             )
         acc=0
-        for path in eval_paths:
+        for path in self.eval_real_new_paths:
             if np.linalg.norm(path["next_observations"][-1])<self.tolerance:
                 acc+=1
-        acc/=len(eval_paths)
-        self.acc=acc
+        acc/=len(self.eval_real_new_paths)
+        self.eval_real_acc=acc
+        gt.stamp('real evaluation sampling')
+
+
+
+        self.eval_sim_new_paths=self.eval_sim_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_steps_per_epoch/5,
+                discard_incomplete_paths=False,
+            )
+        acc=0
+        for path in self.eval_sim_new_paths:
+            if np.linalg.norm(path["next_observations"][-1])<self.tolerance:
+                acc+=1
+        acc/=len(self.eval_sim_new_paths)
+        self.eval_sim_acc=acc
         gt.stamp('evaluation sampling')
-        return eval_paths
 
 
     def add_new_experince_to_buffer(self):
@@ -243,37 +258,60 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         #              fontsize=20)
         # fig.tight_layout()
 
-        self.fig=plt.figure(figsize=((self.num_epochs+1)/10*6,12))
+        self.fig=plt.figure(figsize=((self.num_epochs+1)/10*6,20))
         # self._end_epoch(-1)
         # self.eval_new_paths=self.evaluate(-1)
         self.plot_num=0
         # self.plot_path_steps()
 
-    def plot_path_steps(self):
-
+    def plot_path_steps(self, epoch):
+        num_paths=15
+        num_rows=4
+        num_cols=int(self.num_epochs/self.plot_episodes_period)+1
 
          #trying to make a plot of all epocs
         self.plot_num+=1
-        num_paths=15
-        num_cols=int(self.num_epochs/self.plot_episodes_period)
+        if self.plot_num>num_rows*num_cols:
+            return
+
+
         colormap = plt.cm.gist_ncar
         plt.gca().set_color_cycle([colormap(i) for i in np.linspace(0, 0.9, num_paths)])
-        plt.subplot(2, num_cols, self.plot_num)
-        #plot 1st 8 episodes.
-        for i in range(min(num_paths,len(self.eval_new_paths))):
-            eval_states=self.eval_new_paths[i]["next_observations"]
-            plt.plot(eval_states[:,0].tolist(),eval_states[:,1].tolist(),"-")
-        #plot the state distribution
-        self.threeD_data_distribution( bin_size=7,
-                                    env_range=[0,7], 
-                                    subplot_num= (2, int((self.num_epochs/self.plot_episodes_period)),self.plot_num+ num_cols),
-                                    title= "RealWorld Evaluation State Distribution")
+
+        eval_new_paths=[self.eval_real_new_paths, self.eval_sim_new_paths]
+        for j in range(len(eval_new_paths)):
+            plt.subplot(num_rows, num_cols, self.plot_num+ j*num_cols)
+            plt.title("epoch"+ str(epoch))
+            plt.ylim(0, 7)
+            plt.xlim(0, 7)
+            # print(i,j)
+            # plt.title str(epoch))
+            print(len(eval_new_paths[j]))
+            for i in range(min(num_paths,len(eval_new_paths[j]))):
+                eval_states=eval_new_paths[j][i]["next_observations"]
+                plt.plot(eval_states[:,0].tolist(),eval_states[:,1].tolist(),"-")
+
+            #plot the state distribution
+            self.threeD_data_distribution( eval_new_paths[j], 
+                                            j, 
+                                            bin_size=7,
+                                        env_range=[0,7], 
+                                        subplot_num= (num_rows, num_cols, self.plot_num+ (2+j)*num_cols),
+                                        title= "RealWorld Evaluation State Distribution")
+
+        # plt.subplot(2, num_cols,  self.plot_num+ 2*num_cols)
+        # for i in range(min(num_paths,len(self.eval_real_new_paths))):
+        #     eval_states=self.eval_real_new_paths[i]["next_observations"]
+        #     plt.plot(eval_states[:,0].tolist(),eval_states[:,1].tolist(),"-")
+
+
+
  
-    def threeD_data_distribution(self,bin_size, env_range, subplot_num, title):
+    def threeD_data_distribution(self,eval_new_paths, j, bin_size, env_range, subplot_num, title):
         ax = self.fig.add_subplot(*subplot_num, projection='3d')
         # ax.set_title(title)
 
-        next_obs=np.array([self.eval_new_paths[i]["next_observations"] for i in range(len(self.eval_new_paths))])
+        next_obs=np.array([eval_new_paths[i]["next_observations"] for i in range(len(eval_new_paths))])
         xy=np.concatenate(next_obs, axis=0)
         # import pdb
         # pdb.set_trace()

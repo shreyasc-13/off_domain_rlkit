@@ -7,7 +7,7 @@ from collections import OrderedDict
 import math
 cuda = torch.cuda.is_available()
 device = torch.device("cuda" if cuda else "cpu")
-
+import numpy as np
 def get_data(sim_memory,real_memory):
     sim_memory=convert_to_SAS_input_form(sim_memory)
     real_memory=convert_to_SAS_input_form(real_memory)
@@ -184,18 +184,29 @@ class SAS_hardcode():
         self.real_env=real_env
 
     def predict(self, SAS_input):
-        import pdb
-        state=SAS_input[:, 0:1]
-        next_states=SAS_input[:, 3:4]
-        p_real=math.exp(-200)*torch.Tensor(
-                            [ 1 if(
-                            self.real_env._is_blocked(state[i].data[0]) or self.real_env._is_blocked(next_states[i].data[0]) ) 
-                            else 0 for i in range(len(state)) ])  
-        p_real[p_real==0]=0.5  #0.5 chance of real or fake
+        states=SAS_input[:, 0:2]
+        next_states=SAS_input[:, 4:6]
+        p_real=math.exp(-100)*torch.Tensor(
+                                    np.logical_or(self.real_env._is_blocked_parellel(states.data.numpy()),
+                                                    self.real_env._is_blocked_parellel(next_states.data.numpy())).astype(int))
+        p_real[p_real==0]=0.5
 
-        return torch.cat([p_real[:, None], (1 - p_real)[:,None]], dim=1)#torch.cat((1-p_real, p_real), axis=-1)
+        #for plotting P distrbution distribution on the 2D pointenv. 
+        # blocking=[[0 for i in range(7)] for j in range (7)]
+        # for i in range(7):
+        #     for j in range(7):
+        #         blocking[i][j]=self.real_env._is_blocked(np.array((i+0.5,j+0.5)))
+        # print(blocking)
+        # import matplotlib.pyplot as plt
+        # cm = plt.cm.get_cmap('RdYlBu')
+        # print(next_states)
+        # sc = plt.scatter(next_states[:,0].tolist(),next_states[:,1].tolist(), marker='.',  c=p_real, cmap=cm)
+        # plt.colorbar(sc)
+        # plt.show()
+        
+        return torch.cat([(1 - p_real)[:,None], p_real[:, None]], dim=1)
 
-class classifier:
+class classifier:   
     def __init__( self,  init_classifier_batch_size=1024,hardcode=False, real_env=None,  sim_env=None):
         if hardcode==True:
             self.SAS_hardcode=SAS_hardcode(sim_env, real_env)
@@ -255,39 +266,3 @@ class SAS_loader(Dataset):
         
     def __len__(self):
         return len(self.Y)
-
-
-
-# class SA_loader(Dataset):
-#     def __init__(self, X, Y):
-
-#         self.X=torch.Tensor(X)
-#         self.Y=torch.Tensor(Y)
-
-#     def __getitem__(self, index):
-#         return self.X[index][0:4], self.Y[index]
-        
-#     def __len__(self):
-#         return len(self.Y)
-
-
-
-# def save_data(trainX,trainY,valX,valY, testX, testY):
-#     save_pickle("trainX.pkl",trainX)
-#     save_pickle("trainY.pkl", trainY)
-#     save_pickle("valX.pkl",valX)
-#     save_pickle("valY.pkl", valY)    
-#     save_pickle("testX.pkl",testX)
-#     save_pickle("testY.pkl", testY) 
-#     return
-
-# def load_data():
-#     trainX=load_pickle("trainX.pkl")
-#     trainY=load_pickle("trainY.pkl")
-#     valX=load_pickle("valX.pkl")
-#     valY=load_pickle("valY.pkl")    
-#     testX=load_pickle("testX.pkl")
-#     testY=load_pickle("testY.pkl")
-#     return trainX,trainY,valX,valY,testX,testY
-
-

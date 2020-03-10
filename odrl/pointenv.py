@@ -26,13 +26,13 @@ WALLS = {
                           [0, 0, 0, 0, 0, 0, 0]]),
 
         'Maze7x7':
-                np.array([[0, 0, 0, 1, 0, 0, 0],
-                          [1, 0, 0, 1, 0, 1, 0],
-                          [1, 1, 0, 1, 0, 1, 1],
-                          [1, 0, 0, 1, 0, 0, 1],
-                          [1, 0 ,0, 1, 1, 0, 1],
-                          [1, 0, 0, 0, 0, 0, 1],
-                          [1, 0, 0, 0, 1, 1, 1]]),
+                np.array([[0, 0, 1, 1, 1, 0, 0],
+                          [0, 0, 1, 1, 1, 0, 0],
+                          [0, 0, 1, 1, 1, 0, 0],
+                          [0, 0, 0, 0, 0, 0, 0],
+                          [0, 0 ,0, 0, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 0, 0]]),
 }
 
 
@@ -62,13 +62,16 @@ class PointEnv(gym.Env):
         self.tolerance=tolerance
         self.reset()
 
-    def _sample_empty_state(self):
-        candidate_states = np.where(self._walls == 0)
-        num_candidate_states = len(candidate_states[0])
-        state_index = np.random.choice(num_candidate_states)
-        state = np.array([candidate_states[0][state_index],
-                                            candidate_states[1][state_index]],
-                                         dtype=np.float)
+    def _sample_empty_state(self, constant_start=True):
+        if constant_start==True:
+            state=np.array((0.5, 6.0))
+        else:
+            candidate_states = np.where(self._walls == 0)
+            num_candidate_states = len(candidate_states[0])
+            state_index = np.random.choice(num_candidate_states)
+            state = np.array([candidate_states[0][state_index],
+                                                candidate_states[1][state_index]],
+                                             dtype=np.float)
         state += np.random.uniform(size=2)
         assert not self._is_blocked(state)
         return state
@@ -95,12 +98,24 @@ class PointEnv(gym.Env):
         if j == self._width:
             j -= 1
         return (i, j)
-    
+
     def _is_blocked(self, state):
         if not self.observation_space.contains(state):
             return True
         (i, j) = self._discretize_state(state)
         return (self._walls[i, j] == 1)
+
+    def _discretize_states_parellel(self, states, resolution=1.0):
+        indexes = np.floor(resolution * states).astype(np.int)
+        indexes[indexes[:,0]==self._height]-=1
+        indexes[indexes[:,1]==self._width]-=1
+        return indexes
+
+    def _is_blocked_parellel(self, states):
+        if not states[-1].shape==self.observation_space.shape and all(states >= self.low[None]) and all(states <= self.high[None]):
+            return np.ones((1, len(states)))
+        indexes=  self._discretize_states_parellel(states)
+        return np.array(self._walls[indexes[:,0],indexes[:,1] ] == 1)
 
     def step(self, action):
         if self._action_noise > 0:
@@ -121,7 +136,7 @@ class PointEnv(gym.Env):
         # if self._step_count >= self._duration or ts.is_last():
         #   done=False
         if self.sparse:
-            rew = 100 if np.linalg.norm(self.state)<self.tolerance else 0
+            rew = 1 if np.linalg.norm(self.state)<self.tolerance else 0
         else:
             rew=-1.0 * np.linalg.norm(self.state)
         return self.state.copy(), rew, done, {}
@@ -133,17 +148,17 @@ class PointEnv(gym.Env):
     def get_env_shape(self):
         return  self._height, self._width, self.action_space, self.observation_space, self._walls
 
-def plot_env(env, env_name=None):
-    if env_name:
-        plt.title(env_name)
-    height, width, action_space, observation_space, wall= env.get_env_shape()
-    for (i, j) in zip(*np.where(wall)):
-        x = np.array([i, i+1]) #/ float(width)
-        y0 = np.array([j, j]) #/ float(height)
-        y1 = np.array([j+1, j+1])# / float(height)
-        plt.fill_between(x, y0, y1, color='grey')
-    plt.xlim([0, width])
-    plt.ylim([0, height])
-    # plt.xticks([])
-    # plt.yticks([])
-    # plt.subplots_adjust(wspace=0.1, hspace=0.2)
+    def plot_env( env_name=None):
+        if env_name:
+            plt.title(env_name)
+        height, width, action_space, observation_space, wall= env.get_env_shape()
+        for (i, j) in zip(*np.where(wall)):
+            x = np.array([i, i+1]) #/ float(width)
+            y0 = np.array([j, j]) #/ float(height)
+            y1 = np.array([j+1, j+1])# / float(height)
+            plt.fill_between(x, y0, y1, color='grey')
+        plt.xlim([0, width])
+        plt.ylim([0, height])
+        # plt.xticks([])
+        # plt.yticks([])
+        # plt.subplots_adjust(wspace=0.1, hspace=0.2)
