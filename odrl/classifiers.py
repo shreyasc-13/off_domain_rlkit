@@ -11,15 +11,21 @@ import numpy as np
 def get_data(sim_memory,real_memory):
     sim_memory=convert_to_SAS_input_form(sim_memory)
     real_memory=convert_to_SAS_input_form(real_memory)
+
     X,Y=mixer(sim_memory, real_memory)
     len_data=len(Y)
-    trainX=X[:int(len_data*.80)]
-    trainY=Y[:int(len_data*.80)]
-    valX=X[int(len_data*.80): int(len_data*.90)]
-    valY=Y[int(len_data*.80): int(len_data*.90)]
-    testX=X[int(len_data*.90):]
-    testY=Y[int(len_data*.90):]
-    return trainX,trainY,valX,valY,testX,testY
+    trainX=X[:int(len_data*.90)]
+    trainY=Y[:int(len_data*.90)]
+    valX=X[int(len_data*.90):]
+    valY=Y[int(len_data*.90):]
+    return trainX,trainY,valX,valY, None, None
+    # trainX=X[:int(len_data*.80)]
+    # trainY=Y[:int(len_data*.80)]
+    # valX=X[int(len_data*.80): int(len_data*.90)]
+    # valY=Y[int(len_data*.80): int(len_data*.90)]
+    # testX=X[int(len_data*.90):]
+    # testY=Y[int(len_data*.90):]
+    # return trainX,trainY,valX,valY,testX,testY
 
  
 def mixer(X, X1):
@@ -60,6 +66,9 @@ class Network(nn.Module):
         self.layer3 = nn.Sequential(
                         nn.Linear(unit_count, unit_count),
                         nn.Tanh())
+        # self.layer4 = nn.Sequential(
+        #                 nn.Linear(unit_count, unit_count),
+        #                 nn.Tanh())
         self.layer4 = nn.Sequential(
                           nn.Linear(unit_count, output_size),
                           nn.Softmax(dim=1))
@@ -71,6 +80,7 @@ class Network(nn.Module):
         x = self.layer2(x) 
         x = self.layer3(x)
         x = self.layer4(x)
+        # x = self.layer5(x)
         return x
 
 
@@ -165,10 +175,10 @@ class  Networks(object ):
     def train(self, data, label):
         data = data.to(device)
         label = label.long().to(device)
+        self.Network.train()
         self.optimizer.zero_grad()
         inp = Variable(data)
         Y = Variable(label)
-
         out = self.Network(inp.float())
         loss = self.criterion(out, Y) 
         loss.backward()
@@ -176,6 +186,17 @@ class  Networks(object ):
         acc = ((predictions.long() == label).float().sum())/len(label)
         self.optimizer.step()
         return loss.data, acc
+
+    def predict(self, data):
+        data = data.to(device)
+        inp=Variable(data)
+        self.Network.eval()
+        with torch.no_grad():
+            out = self.Network(inp.float())
+        return out
+
+
+
         
 
 class SAS_hardcode():
@@ -203,7 +224,6 @@ class SAS_hardcode():
         # sc = plt.scatter(next_states[:,0].tolist(),next_states[:,1].tolist(), marker='.',  c=p_real, cmap=cm)
         # plt.colorbar(sc)
         # plt.show()
-        
         return torch.cat([(1 - p_real)[:,None], p_real[:, None]], dim=1)
 
 class classifier:   
@@ -255,9 +275,9 @@ class classifier:
         self._train_loss, self._train_acc=[],[]
         return res
 
+
 class SAS_loader(Dataset):
     def __init__(self, X, Y):
-
         self.X=torch.Tensor(X)
         self.Y=torch.Tensor(Y)
 

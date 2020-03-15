@@ -79,6 +79,8 @@ def rollout(
         max_path_length=np.inf,
         render=False,
         render_kwargs=None,
+        collect_random_path=False, 
+        constant_start_state=True
 ):
     """
     The following value for the following keys will be a 2D array, with the
@@ -102,14 +104,19 @@ def rollout(
     terminals = []
     agent_infos = []
     env_infos = []
-    o = env.reset()
+    o = env.reset(constant_start_state)
     agent.reset()
     next_o = None
     path_length = 0
     if render:
         env.render(**render_kwargs)
+
+
     while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
+        if collect_random_path:
+            a = env.action_space.sample(); agent_info={}
+        else:
+            a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)

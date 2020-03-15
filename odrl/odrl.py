@@ -113,10 +113,10 @@ def experiment(variant):
         sim_replay_buffer=sim_replay_buffer,
         real_replay_buffer= real_replay_buffer,
 
-        num_real_steps_at_init=     1000    if variant['rl_on_real'] else 10000,
-        num_sim_steps_at_init=      0       if variant['rl_on_real'] else 10000,
-        num_real_steps_per_epoch=   500     if variant['rl_on_real'] else 100 if variant['num_classifier_train_steps_per_iter'] else 0,
-        num_sim_steps_per_epoch=    0       if variant['rl_on_real'] else 5000,
+        num_real_steps_at_init=     50    if variant['rl_on_real'] else 5000,
+        num_sim_steps_at_init=      0       if variant['rl_on_real'] else 5000,
+        num_real_steps_per_epoch=   0     if variant['rl_on_real'] else 100 if variant['num_classifier_train_steps_per_iter'] else 0,
+        num_sim_steps_per_epoch=    0       if variant['rl_on_real'] else 5000 if variant['num_classifier_train_steps_per_iter'] else 5000,
         num_rl_train_steps_per_iter=1,
 
         rl_on_real=variant['rl_on_real'],
@@ -127,7 +127,10 @@ def experiment(variant):
         classifier_batch_size=512,
         tolerance=tolerance,
         plot_episodes_period=1 if variant['algorithm_kwargs']['num_epochs']<5 else int(variant['algorithm_kwargs']['num_epochs']/5),
-        hardcode_classifier=variant['hardcode_classifier']
+        hardcode_classifier=variant['hardcode_classifier'],
+        init_paths_random=variant['init_paths_random'],
+        constant_start_state_init=variant['constant_start_state_init'],
+        constant_start_state_while_training=variant['constant_start_state_while_training']
     )
     algorithm.to(ptu.device)
     algorithm.train()
@@ -142,7 +145,7 @@ if __name__ == "__main__":
         layer_size=256,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=21,
+            num_epochs=22,
             num_eval_steps_per_epoch=5000,
             num_trains_per_train_loop=1000,
             # num_expl_steps_per_train_loop=1000,
@@ -160,12 +163,16 @@ if __name__ == "__main__":
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
-        rl_on_real=False,
+        rl_on_real=True,
+        hardcode_classifier=False, 
         num_classifier_train_steps_per_iter=0,
-        num_classifier_init_epoch=50,
+        num_classifier_init_epoch=0,
         sparse=True,
         tolerance=1,#needed for rewards if sparse, and also for calculating accuracy\
-        hardcode_classifier=True        
+        init_paths_random=True,
+        constant_start_state_init=False, 
+        constant_start_state_while_training=False
+        
 
     )
     setup_logger('name-of-experiment', variant=variant)

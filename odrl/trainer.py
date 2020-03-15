@@ -8,6 +8,7 @@ from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.torch.torch_rl_algorithm import TorchTrainer
 from rlkit.torch.core import np_to_pytorch_batch
 import torch
+import matplotlib.pyplot as plt
 
 import torch.optim as optim
 from torch import nn as nn
@@ -92,26 +93,32 @@ class SACTrainer(TorchTrainer):
 
 
 
-    def train_from_torch(self, batch,  modify_reward=False,  classifier=None):
+    def train_from_torch(self, batch,  modify_reward=False,  classifier=None, plot_classifier=False,subplot_num=None ):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-
+        # modify_reward=False
+        #To test how would it work without modifying rewards in sim, but training only in sim  # modify_reward=False; plot_classifier=False 
+        # Our method:
         if modify_reward:
             classifier_input=  torch.cat((obs, actions), 1)
             classifier_input=  torch.cat((classifier_input, next_obs), 1)
             outSAS=classifier(classifier_input)
             deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
             rewards=rewards+deltaR
-                
-            #for plotting R distribution on the 2D pointenv. 
-            # import matplotlib.pyplot as plt
-            # cm = plt.cm.get_cmap('RdYlBu')
-            # sc = plt.scatter(next_obs[:,0].tolist(),next_obs[:,1].tolist(), marker='.',  c=rewards, cmap=cm)
-            # plt.colorbar(sc)
-            # plt.show()   
+            # import pdb;pdb.set_trace()
+            if plot_classifier:
+                plt.subplot(subplot_num[0],subplot_num[1], subplot_num[2] )
+                cm = plt.cm.get_cmap('RdYlBu')
+                sc = plt.scatter(obs[:,0].tolist(),obs[:,1].tolist(), marker='.',  c=deltaR, cmap=cm)
+                plt.colorbar(sc)
+                plt.subplot(subplot_num[0],subplot_num[1], subplot_num[2]+subplot_num[1])
+                cm = plt.cm.get_cmap('RdYlBu')
+                sc = plt.scatter(obs[:,0].tolist(),obs[:,1].tolist(), marker='.',  c=rewards, cmap=cm)
+                plt.colorbar(sc)
+
 
         """
         Policy and Alpha Loss
@@ -251,21 +258,4 @@ class SACTrainer(TorchTrainer):
             target_qf1=self.qf1,
             target_qf2=self.qf2,
         )
-
-    def three_d_plot(axis,dz, color):
-        ax = fig.add_subplot(axis, projection='3d')
-        dx = 0.05 * np.ones_like(zpos)
-        dy = dx.copy()
-        dz =  dz
-        ax.bar3d(inpSAS[:1000,0].cpu().tolist(),inpSAS[:1000,1].cpu().tolist(), 
-                 zpos[:1000], dx[:1000], dy[:1000],  dz[:1000], 
-                 color=color[:1000], zsort='average', alpha=0.4)
-        fig = plt.figure(figsize= [14, 14])
-        zpos = np.zeros_like(inpSAS[:,0].tolist())
-        three_d_plot(231, Rreal.cpu().tolist(), RrealColor)
-        three_d_plot(232, deltaR.cpu().tolist(), deltaRColor)
-        three_d_plot(233, Rsim.cpu().tolist(), RsimColor)
-        three_d_plot(235, deltaRUnnormalised.cpu().tolist(), deltaRUnnormalizedColor)
-        three_d_plot(236, RsimUnnormalized.cpu().tolist(), RsimUnnormalizedColor)
-        plt.show()
 

@@ -4,7 +4,7 @@ import gtimer as gt
 from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import PathCollector
-from classifiers import classifier
+from classifiers import classifier, mixer, convert_to_SAS_input_form
 import matplotlib as mpl
 mpl.use('TkAgg')  # or whatever other backend that you want
 import matplotlib.pyplot as plt
@@ -46,7 +46,10 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             classifier_batch_size=1024,
             tolerance=1,
             plot_episodes_period=10,
-            hardcode_classifier=False
+            hardcode_classifier=False, 
+            init_paths_random=False,
+            constant_start_state_init=True, 
+            constant_start_state_while_training=True
     ):
 
 
@@ -93,12 +96,15 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.tolerance=tolerance
         self.plot_episodes_period=plot_episodes_period
         self.hardcode_classifier=hardcode_classifier
+        self.init_paths_random=init_paths_random, 
+        self.constant_start_state_init=constant_start_state_init
+        self.constant_start_state_while_training=constant_start_state_while_training
 
     def _train(self):
 
         # INIT REPLAY BUFFER
 
-        self.SAC_burn_in_memory()
+        self.SAC_burn_in_memory(use_policy=False)
  
         #If our method: train the classifier on INIT replay buffer.
         if not self.rl_on_real and self.num_sim_steps_at_init and self.num_real_steps_at_init :
@@ -131,7 +137,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
                 self.training_mode(True)
                 # for num_trains_per_train_loop, randomly sample from the buffer and train. 
-                for _ in range(self.num_trains_per_train_loop):
+                for train_num in range(self.num_trains_per_train_loop):
                     if self.rl_on_real:
                         train_data =self.real_replay_buffer.random_batch(self.batch_size)
                         self.trainer.train(train_data)
@@ -141,7 +147,10 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         if not self.hardcode_classifier:
                             self.trainer.train(train_data,
                                             modify_reward=True, 
-                                            classifier=self.classifier.SAS_Network.Network)
+                                            classifier=self.classifier.SAS_Network.predict,
+                                            plot_classifier=True if (not (epoch-1)%self.plot_episodes_period and not train_num) else False, 
+                                            subplot_num= (self.num_rows, self.num_cols, self.plot_num+ 4*self.num_cols) if (epoch and not train_num) else None
+                                            )
                         else:
                             self.trainer.train(train_data,
                                             modify_reward=True, 
@@ -152,9 +161,23 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     self.classifier.classifier_train_from_batch(
                         self.sim_replay_buffer.random_batch(self.classifier_batch_size),
                         self.real_replay_buffer.random_batch(self.classifier_batch_size)
-                        )
+                        )   
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
+
+                # batch=train_data
+                # rewards = batch['rewards']
+                # terminals = batch['terminals']
+                # obs = batch['observations']
+                # actions = batch['actions']
+                # next_obs = batch['next_observations']
+                # classifier_input=  torch.cat((obs, actions), 1)
+                # classifier_input=  torch.cat((classifier_input, next_obs), 1)
+                # outSAS=self.classifier.SAS_Network.predict(classifier_input)
+                # deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
+                # rewards=rewards+deltaR
+                    
+
             self.evaluate(epoch)
 
             self._end_epoch(epoch) # logs all statistics
@@ -165,13 +188,19 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         plt.show()
 
 
-    def SAC_burn_in_memory(self):
+    def SAC_burn_in_memory(self, use_policy):
         # Filling real replay buffer at the start with the real world steps
         if self.num_real_steps_at_init:
             init_real_expl_paths = self.real_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_real_steps_at_init,
                 discard_incomplete_paths=False,
+                collect_random_path=self.init_paths_random, 
+                constant_start_state=self.constant_start_state_init
+
+
+                # use_policy=False
+
             )
             self.real_replay_buffer.add_paths(init_real_expl_paths)
             # print(self.num_real_steps_at_init, len(init_real_expl_paths), self.max_episode_steps)
@@ -184,15 +213,23 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.max_path_length,
                 self.num_sim_steps_at_init,
                 discard_incomplete_paths=False,
+                collect_random_path=self.init_paths_random, 
+                constant_start_state=self.constant_start_state_init
+                # use_policy=False
             )
             self.sim_replay_buffer.add_paths(init_sim_expl_paths)
             self.sim_data_collector.end_epoch(-1)
+
+
+
+
 
     def evaluate(self, epoch):
         self.eval_real_new_paths=self.eval_real_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_eval_steps_per_epoch,
                 discard_incomplete_paths=False,
+
             )
         acc=0
         for path in self.eval_real_new_paths:
@@ -226,6 +263,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.max_path_length,
                 self.num_sim_steps_per_epoch,
                 discard_incomplete_paths=False,
+                constant_start_state=self.constant_start_state_while_training
             )
             gt.stamp('exploration sim sampling', unique=False)
             self.sim_replay_buffer.add_paths(new_sim_paths)
@@ -237,6 +275,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.max_path_length,
                 self.num_real_steps_per_epoch,
                 discard_incomplete_paths=False,
+                constant_start_state=self.constant_start_state_while_training
+
             )
             # self.num_real_steps_total +=self.num_real_steps_per_epoch
             gt.stamp('exploration real sampling', unique=False)
@@ -257,7 +297,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         #              ", Classifier Training Online: "+ str(bool(self.num_classifier_train_steps_per_iter)), 
         #              fontsize=20)
         # fig.tight_layout()
-
         self.fig=plt.figure(figsize=((self.num_epochs+1)/10*6,20))
         # self._end_epoch(-1)
         # self.eval_new_paths=self.evaluate(-1)
@@ -266,12 +305,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
     def plot_path_steps(self, epoch):
         num_paths=15
-        num_rows=4
-        num_cols=int(self.num_epochs/self.plot_episodes_period)+1
-
-         #trying to make a plot of all epocs
+        self.num_rows=6
+        self.num_cols=int(self.num_epochs/self.plot_episodes_period)+1
+        #trying to make a plot of all epocs
         self.plot_num+=1
-        if self.plot_num>num_rows*num_cols:
+        if self.plot_num>self.num_rows*self.num_cols:
             return
 
 
@@ -279,8 +317,10 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         plt.gca().set_color_cycle([colormap(i) for i in np.linspace(0, 0.9, num_paths)])
 
         eval_new_paths=[self.eval_real_new_paths, self.eval_sim_new_paths]
+        
+
         for j in range(len(eval_new_paths)):
-            plt.subplot(num_rows, num_cols, self.plot_num+ j*num_cols)
+            plt.subplot(self.num_rows, self.num_cols, self.plot_num+ j*self.num_cols)
             plt.title("epoch"+ str(epoch))
             plt.ylim(0, 7)
             plt.xlim(0, 7)
@@ -292,14 +332,31 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 plt.plot(eval_states[:,0].tolist(),eval_states[:,1].tolist(),"-")
 
             #plot the state distribution
+            # import pdb;pdb.set_trace()
             self.threeD_data_distribution( eval_new_paths[j], 
                                             j, 
                                             bin_size=7,
                                         env_range=[0,7], 
-                                        subplot_num= (num_rows, num_cols, self.plot_num+ (2+j)*num_cols),
+                                        subplot_num= (self.num_rows, self.num_cols, self.plot_num+ (2+j)*self.num_cols),
                                         title= "RealWorld Evaluation State Distribution")
+        plot_classifier=True
+        # import pdb;pdb.set_trace()
+        # if plot_classifier:
+        #     sim_classification_paths=convert_to_SAS_input_form(self.sim_replay_buffer.random_batch(1000))
+        #     real_classification_paths=convert_to_SAS_input_form(self.real_replay_buffer.random_batch(1000))
+        #     paths_combined, Y=mixer(sim_classification_paths, real_classification_paths)
+        #     outSAS=self.classifier.SAS_Network.predict(paths_combined)
+        #     deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
+        #     plt.subplot(self.num_rows, self.num_cols,self.plot_num+ (4)*self.num_cols)
+        #     cm = plt.cm.get_cmap('RdYlBu')
+        #     sc = plt.scatter(obs[:,0].tolist(),obs[:,1].tolist(), marker='.',  c=deltaR, cmap=cm)
+        #     plt.colorbar(sc)
+            # plt.subplot(self.num_rows, self.num_cols,self.plot_num+ (6)*self.num_cols)
+            # cm = plt.cm.get_cmap('RdYlBu')
+            # sc = plt.scatter(obs[:,0].tolist(),obs[:,1].tolist(), marker='.',  c=rewards, cmap=cm)
+            # plt.colorbar(sc)
 
-        # plt.subplot(2, num_cols,  self.plot_num+ 2*num_cols)
+        # plt.subplot(2, self.num_cols,  self.plot_num+ 2*self.num_cols)
         # for i in range(min(num_paths,len(self.eval_real_new_paths))):
         #     eval_states=self.eval_real_new_paths[i]["next_observations"]
         #     plt.plot(eval_states[:,0].tolist(),eval_states[:,1].tolist(),"-")

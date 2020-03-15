@@ -62,7 +62,7 @@ class PointEnv(gym.Env):
         self.tolerance=tolerance
         self.reset()
 
-    def _sample_empty_state(self, constant_start=True):
+    def _sample_empty_state(self,constant_start ):
         if constant_start==True:
             state=np.array((0.5, 6.0))
         else:
@@ -76,8 +76,8 @@ class PointEnv(gym.Env):
         assert not self._is_blocked(state)
         return state
         
-    def reset(self):
-        self.state = self._sample_empty_state()
+    def reset(self, constant_start=True):
+        self.state = self._sample_empty_state( constant_start= constant_start)
         self._step_count = 0
         self.init_states.append(self.state)
         return self.state.copy()
@@ -136,7 +136,7 @@ class PointEnv(gym.Env):
         # if self._step_count >= self._duration or ts.is_last():
         #   done=False
         if self.sparse:
-            rew = 1 if np.linalg.norm(self.state)<self.tolerance else 0
+            rew = 20 if np.linalg.norm(self.state)<self.tolerance else 0
         else:
             rew=-1.0 * np.linalg.norm(self.state)
         return self.state.copy(), rew, done, {}
