@@ -8,7 +8,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self, is_real): #params):
         self.is_real = is_real
         if self.is_real:
-            f = open('half_cheetah.xml', 'r')
+            f = open('half_cheetah_mj.xml', 'r')
             model_xml = f.read()
             mujoco_env.MujocoEnv.__init__(self, model_xml, 5)
         else:
@@ -27,7 +27,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         replaced_str = 'friction="%1.1f %1.1f %1.1f"'%(friction_value[0], friction_value[1], friction_value[2])
 
         try:
-            f = open('half_cheetah.xml', 'r')
+            f = open('half_cheetah_mj.xml', 'r')
             data = f.read()
             model_xml = data.replace('friction=".4 .1 .1"', replaced_str)
             return model_xml

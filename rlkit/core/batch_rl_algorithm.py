@@ -22,7 +22,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             max_path_length,
             num_epochs,
             num_eval_steps_per_epoch,
-            num_expl_steps_per_train_loop,
+            # num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
             evaluation_data_collector: PathCollector,
             sim_data_collector: PathCollector,
@@ -61,7 +61,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
         self.num_trains_per_train_loop = num_trains_per_train_loop
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
-        self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
+        # self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
 
         self.sim_data_collector = sim_data_collector
         self.real_data_collector = real_data_collector
@@ -121,11 +121,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         if not self.hardcode_classifier:
                             self.trainer.train(train_data,
                                             modify_reward=True,
-                                            classifier=self.classifier.SAS_Network.Network)
+                                            classifier=self.classifier.SAS_Network.predict)
                         else:
                             self.trainer.train(train_data,
                                             modify_reward=True,
-                                            classifier=self.classifier.SAS_hardcode.predict)
+                                            classifier=self.classifier.SAS_Network.predict)
 
             if not self.rl_on_real and not self.hardcode_classifier:
                 #train the classifier with random samples from both the buffers

@@ -25,20 +25,28 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
     def __init__(
             self,
             trainer,
-            exploration_env,
+            sim_exploration_env,
+            real_exploration_env,
             evaluation_env,
-            exploration_data_collector: DataCollector,
+            sim_data_collector: DataCollector,
+            real_data_collector: DataCollector,
             evaluation_data_collector: DataCollector,
-            replay_buffer: ReplayBuffer,
+            sim_replay_buffer: ReplayBuffer,
+            real_replay_buffer: ReplayBuffer,
+            rl_on_real,
     ):
         self.trainer = trainer
-        self.expl_env = exploration_env
+        self.sim_expl_env = sim_exploration_env
+        self.real_expl_env=real_exploration_env
         self.eval_env = evaluation_env
-        self.expl_data_collector = exploration_data_collector
-        self.eval_data_collector = evaluation_data_collector
-        self.replay_buffer = replay_buffer
-        self._start_epoch = 0
 
+        self.sim_data_collector = sim_data_collector
+        self.real_data_collector = real_data_collector
+        self.eval_data_collector = evaluation_data_collector
+        self.sim_replay_buffer = sim_replay_buffer
+        self.real_replay_buffer= real_replay_buffer
+        self._start_epoch = 0
+        self.rl_on_real=rl_on_real
         self.post_epoch_funcs = []
 
     def train(self, start_epoch=0):
@@ -57,9 +65,11 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         gt.stamp('saving')
         self._log_stats(epoch)
 
-        self.expl_data_collector.end_epoch(epoch)
+        self.sim_data_collector.end_epoch(epoch)
+        self.real_data_collector.end_epoch(epoch)
         self.eval_data_collector.end_epoch(epoch)
-        self.replay_buffer.end_epoch(epoch)
+        self.sim_replay_buffer.end_epoch(epoch)
+        self.real_replay_buffer.end_epoch(epoch)
         self.trainer.end_epoch(epoch)
 
         for post_epoch_func in self.post_epoch_funcs:
@@ -69,12 +79,16 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         snapshot = {}
         for k, v in self.trainer.get_snapshot().items():
             snapshot['trainer/' + k] = v
-        for k, v in self.expl_data_collector.get_snapshot().items():
-            snapshot['exploration/' + k] = v
+        for k, v in self.sim_data_collector.get_snapshot().items():
+            snapshot['sim_exploration/' + k] = v
+        for k, v in self.real_data_collector.get_snapshot().items():
+            snapshot['real_exploration/' + k] = v
         for k, v in self.eval_data_collector.get_snapshot().items():
             snapshot['evaluation/' + k] = v
-        for k, v in self.replay_buffer.get_snapshot().items():
-            snapshot['replay_buffer/' + k] = v
+        for k, v in self.real_replay_buffer.get_snapshot().items():
+            snapshot['real_replay_buffer/' + k] = v
+        for k, v in self.sim_replay_buffer.get_snapshot().items():
+            snapshot['sim_replay_buffer/' + k] = v
         return snapshot
 
     def _log_stats(self, epoch):
@@ -84,7 +98,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         Replay Buffer
         """
         logger.record_dict(
-            self.replay_buffer.get_diagnostics(),
+            self.sim_replay_buffer.get_diagnostics(),
             prefix='replay_buffer/'
         )
 
@@ -96,37 +110,69 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         """
         Exploration
         """
-        logger.record_dict(
-            self.expl_data_collector.get_diagnostics(),
-            prefix='exploration/'
-        )
-        expl_paths = self.expl_data_collector.get_epoch_paths()
-        if hasattr(self.expl_env, 'get_diagnostics'):
+        if not self.rl_on_real:
+
+            if self.num_classifier_train_steps_per_iter:
+                logger.record_dict(
+                    self.classifier.get_diagnostics(),
+                    prefix='classifier',)
+
+            # logger.record_dict(OrderedDict([('num_real_steps_total',self.num_real_steps_total)]))
             logger.record_dict(
-                self.expl_env.get_diagnostics(expl_paths),
-                prefix='exploration/',
-            )
+                    self.sim_data_collector.get_diagnostics(),
+                    prefix='sim_exploration/'
+                )
+            if self.num_sim_steps_per_epoch:
+                sim_expl_paths = self.sim_data_collector.get_epoch_paths()
+                if hasattr(self.sim_expl_env, 'get_diagnostics'):
+                    logger.record_dict(
+                        self.sim_expl_env.get_diagnostics(sim_expl_paths),
+                        prefix='sim_exploration/',
+                    )
+                logger.record_dict(
+                    eval_util.get_generic_path_information(sim_expl_paths),
+                    prefix="sim_exploration/",
+                )
+
         logger.record_dict(
-            eval_util.get_generic_path_information(expl_paths),
-            prefix="exploration/",
+            self.real_data_collector.get_diagnostics(),
+            prefix='real_exploration/'
         )
+
+        if not self.training_SAC or self.num_real_steps_per_epoch:
+            real_expl_paths = self.real_data_collector.get_epoch_paths()
+            if hasattr(self.real_expl_env, 'get_diagnostics'):
+                logger.record_dict(
+                    self.real_expl_env.get_diagnostics(real_expl_paths),
+                    prefix='real_exploration/',
+                )
+            logger.record_dict(
+                eval_util.get_generic_path_information(real_expl_paths),
+                prefix="real_exploration/",
+            )
+
+        else:
+            prefix='real_exploration/'
+
         """
         Evaluation
         """
-        logger.record_dict(
-            self.eval_data_collector.get_diagnostics(),
-            prefix='evaluation/',
-        )
-        eval_paths = self.eval_data_collector.get_epoch_paths()
-        if hasattr(self.eval_env, 'get_diagnostics'):
-            logger.record_dict(
-                self.eval_env.get_diagnostics(eval_paths),
-                prefix='evaluation/',
-            )
-        logger.record_dict(
-            eval_util.get_generic_path_information(eval_paths),
-            prefix="evaluation/",
-        )
+        #Shreyas TODO: Fix eval logging
+
+        # logger.record_dict(
+        #     self.eval_data_collector.get_diagnostics(),
+        #     prefix='evaluation/',
+        # )
+        # eval_paths = self.eval_data_collector.get_epoch_paths()
+        # if hasattr(self.eval_env, 'get_diagnostics'):
+        #     logger.record_dict(
+        #         self.eval_env.get_diagnostics(eval_paths),
+        #         prefix='evaluation/',
+        #     )
+        # logger.record_dict(
+        #     eval_util.get_generic_path_information(eval_paths),
+        #     prefix="evaluation/",
+        # )
 
         """
         Misc

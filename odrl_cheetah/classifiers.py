@@ -183,6 +183,14 @@ class  Networks(object):
         self.optimizer.step()
         return loss.data, acc
 
+    def predict(self, data):
+        data = data.to(device)
+        inp=Variable(data)
+        self.Network.eval()
+        with torch.no_grad():
+            out = self.Network(inp.float())
+        return out
+
 '''
 Hardcoded classifier: Currently not used
 '''

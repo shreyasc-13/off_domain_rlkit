@@ -13,15 +13,16 @@ from trainer import SACTrainer
 from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
-from half_cheetah import HalfCheetahEnv
+# from half_cheetah import HalfCheetahEnv
+from pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv
 
 def experiment(variant):
 
     #Shreyas TODO: FIX IMPLEM
-    sim_expl_env = NormalizedBoxEnv(HalfCheetahEnv(is_real=False))
-    sim_eval_env = NormalizedBoxEnv(HalfCheetahEnv(is_real=False))
-    real_expl_env = NormalizedBoxEnv(HalfCheetahEnv(is_real=True))
-    real_eval_env = NormalizedBoxEnv(HalfCheetahEnv(is_real=True))
+    sim_expl_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=False))
+    sim_eval_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=False))
+    real_expl_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=True))
+    real_eval_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=True))
 
     obs_dim = real_expl_env.observation_space.low.size
     action_dim = real_eval_env.action_space.low.size
@@ -96,7 +97,7 @@ def experiment(variant):
         evaluation_env=real_eval_env,
         batch_size=variant['algorithm_kwargs']['batch_size'],
         max_path_length=variant['algorithm_kwargs']['max_path_length'],
-        max_episode_steps=variant['algorithm_kwargs']['max_episode_length'],
+        # max_episode_steps=variant['algorithm_kwargs']['max_episode_length'],
         num_epochs=variant['algorithm_kwargs']['num_epochs'],
         num_eval_steps_per_epoch=variant['algorithm_kwargs']['num_eval_steps_per_epoch'],
         num_trains_per_train_loop=variant['algorithm_kwargs']['num_trains_per_train_loop'],
