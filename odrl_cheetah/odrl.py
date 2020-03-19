@@ -18,7 +18,6 @@ from pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv
 
 def experiment(variant):
 
-    #Shreyas TODO: FIX IMPLEM
     sim_expl_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=False))
     sim_eval_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=False))
     real_expl_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=True))
@@ -158,6 +157,8 @@ if __name__ == "__main__":
 
         hardcode_classifier=False
     )
-    setup_logger('name-of-experiment', variant=variant)
+    log_dir = setup_logger('name-of-experiment', variant=variant)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
+    # print(log_dir)
     experiment(variant)
+    # plot_progress(log_dir)

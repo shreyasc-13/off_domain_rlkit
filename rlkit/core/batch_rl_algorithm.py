@@ -103,6 +103,13 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             # collect real env evaluate steps. It will just stores the stats which will be used in logging with end_epoch.
             #putting end of epoch here because we also want to log at the very begining of the training.
 
+            self.eval_new_paths = self.eval_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_steps_per_epoch,
+                discard_incomplete_paths=False,
+            )
+            gt.stamp('evaluation sampling')
+
             #for train_loops_per_epoch(SAC default: 1000, my default:1),
             for _ in range(self.num_train_loops_per_epoch):
                 #Collect new sim and real expl paths
@@ -170,6 +177,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def evaluate(self, epoch):
         '''
         Shreyas TODO: To implement for half_cheetah
+        Currently logging eval env stats
         '''
         pass
 
