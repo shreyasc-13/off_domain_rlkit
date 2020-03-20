@@ -32,7 +32,7 @@ def mixer(X, X1):
     Y2=torch.cat((Y,Y1),0)
     XY=torch.cat((X2,Y2),1)
     XYshuffled=XY[torch.randperm(XY.shape[0])]
-    return  XYshuffled[:,0:40],XYshuffled[:,-1]
+    return  XYshuffled[:,0:58],XYshuffled[:,-1]
 
 def convert_to_SAS_input_form(batch):
     obs = batch['observations']
@@ -214,12 +214,17 @@ Hardcoded classifier: Currently not used
 '''
 Classifier class
 '''
+# sas_dim = 0
+#Shreyas TODO: Fix hardcong to applyt to all envs
 class classifier:
     def __init__( self,  init_classifier_batch_size=1024,hardcode=False, real_env=None,  sim_env=None):
+        self.env_state_dim = 26
+        self.env_action_dim = 6
+        self.sas_dim = 2*self.env_state_dim + self.env_action_dim
         if hardcode==True:
             self.SAS_hardcode=SAS_hardcode(sim_env, real_env)
         else:
-            self.SAS_model = Network(input_size =40, output_size = 2, unit_count = 80)
+            self.SAS_model = Network(input_size =self.sas_dim, output_size = 2, unit_count = 100)
             self.SAS_model.apply(init_model)
             self.SAS_optimizer= torch.optim.Adam(self.SAS_model.parameters(), lr=10e-3)
             self.SAS_scheduler= ReduceLROnPlateau(self.SAS_optimizer, 'min')
@@ -273,7 +278,7 @@ class SAS_loader(Dataset):
         self.Y=torch.Tensor(Y)
 
     def __getitem__(self, index):
-        return self.X[index][0:40], self.Y[index]
+        return self.X[index][0:58], self.Y[index]
 
     def __len__(self):
         return len(self.Y)

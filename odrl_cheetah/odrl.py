@@ -15,6 +15,7 @@ from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 # from half_cheetah import HalfCheetahEnv
 from pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv
+from plot_scripts import plotting_evalreturns
 
 def experiment(variant):
 
@@ -133,7 +134,7 @@ if __name__ == "__main__":
         layer_size=256,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=100,
+            num_epochs=200,
             num_eval_steps_per_epoch=5000,
             num_trains_per_train_loop=1000,
             # num_expl_steps_per_train_loop=1000,
@@ -151,14 +152,16 @@ if __name__ == "__main__":
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
-        rl_on_real=True,
+        rl_on_real=False,
         num_classifier_train_steps_per_iter=0,
         num_classifier_init_epoch=50,
 
         hardcode_classifier=False
     )
-    log_dir = setup_logger('name-of-experiment', variant=variant)
+    log_dir = setup_logger('name-of-experiment', variant=variant) #Returns absolute path
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     # print(log_dir)
     experiment(variant)
-    # plot_progress(log_dir)
+
+    #Add plot(s) to the log folders
+    plotting_evalreturns(log_dir, rl_on_real)

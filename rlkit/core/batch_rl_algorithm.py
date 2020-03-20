@@ -78,6 +78,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.evaluation_env=evaluation_env
         self.training_SAC=False
 
+        self.hardcode_classifier = hardcode_classifier
+
     def _train(self):
 
         # INIT REPLAY BUFFER
@@ -132,7 +134,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         else:
                             self.trainer.train(train_data,
                                             modify_reward=True,
-                                            classifier=self.classifier.SAS_Network.predict)
+                                            classifier=self.classifier.SAS_hardcode.predict)
 
             if not self.rl_on_real and not self.hardcode_classifier:
                 #train the classifier with random samples from both the buffers
