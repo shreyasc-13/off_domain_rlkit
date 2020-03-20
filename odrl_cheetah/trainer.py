@@ -40,7 +40,9 @@ class SACTrainer(TorchTrainer):
 
             use_automatic_entropy_tuning=True,
             target_entropy=None,
-            classifier=None
+            classifier=None,
+
+            real_reward_scaleup=1.
 
     ):
         super().__init__()
@@ -91,6 +93,8 @@ class SACTrainer(TorchTrainer):
         self._need_to_update_eval_statistics = True
         self.logs={"policy_training_loss":[], "policy_val_loss":[], }
 
+        self.real_reward_scaleup = real_reward_scaleup
+
 
     def train_from_torch(self, batch,  modify_reward=False,  classifier=None):
         rewards = batch['rewards']
@@ -104,7 +108,8 @@ class SACTrainer(TorchTrainer):
             classifier_input=  torch.cat((classifier_input, next_obs), 1)
             outSAS=classifier(classifier_input)
             deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
-            rewards=rewards+deltaR
+            #Shreyas edit: Adding a scale up factor for real rewards
+            rewards = self.real_reward_scaleup * rewards + deltaR
         """
         Policy and Alpha Loss
         """

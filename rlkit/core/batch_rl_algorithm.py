@@ -178,7 +178,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
     def evaluate(self, epoch):
         '''
-        Shreyas TODO: To implement for half_cheetah
+        Shreyas TODO: To implement for half_cheetah - if a custom eval is needed
         Currently logging eval env stats
         '''
         pass

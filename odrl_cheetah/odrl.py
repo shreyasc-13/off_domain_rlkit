@@ -151,6 +151,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
+            real_reward_scaleup = 10. #Shreyas edit
         ),
         rl_on_real=False,
         num_classifier_train_steps_per_iter=0,
