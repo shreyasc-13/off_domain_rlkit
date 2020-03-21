@@ -13,6 +13,15 @@ from trainer import SACTrainer
 from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from pointenv import * 
+import argparse
+
+from torch import nn as nn
+from torch.utils.data import Dataset, DataLoader
+from torch.autograd import Variable
+from torch.optim.lr_scheduler import  ReduceLROnPlateau
+from collections import OrderedDict
+import math
+from torch import cuda, device
 
 def experiment(variant):
     # import pdb
@@ -21,11 +30,14 @@ def experiment(variant):
     real_env_name = 'Maze7x7' 
     tolerance=variant["tolerance"]
     sparse=variant["sparse"]
-    sim_expl_env  = PointEnv(sim_env_name,  sparse, tolerance)
-    sim_eval_env  = PointEnv(sim_env_name,  sparse, tolerance)
-    real_expl_env = PointEnv(real_env_name, sparse, tolerance)
-    real_eval_env = PointEnv(real_env_name, sparse, tolerance)
+    resize_factor=variant['resize_factor']
+    # max_env_steps=variant['']
+    sim_expl_env  = PointEnv(sim_env_name,  sparse, tolerance, resize_factor)
+    sim_eval_env  = PointEnv(sim_env_name,  sparse, tolerance, resize_factor)
+    real_expl_env = PointEnv(real_env_name, sparse, tolerance, resize_factor)
+    real_eval_env = PointEnv(real_env_name, sparse, tolerance, resize_factor)
     obs_dim = sim_expl_env.observation_space.low.size
+    print(obs_dim)
     action_dim = sim_expl_env.action_space.low.size
     max_episode_steps=variant['algorithm_kwargs']['max_episode_length']
     M = variant['layer_size']
@@ -58,23 +70,19 @@ def experiment(variant):
     eval_real_path_collector = MdpPathCollector(
         real_eval_env,
         policy,
-        max_episode_steps
-    )
+        max_episode_steps    )
     eval_sim_path_collector = MdpPathCollector(
         sim_eval_env,
         policy,
-        max_episode_steps
-    )
+        max_episode_steps    )
     real_path_collector = MdpPathCollector(
         real_expl_env,
         policy,
-        max_episode_steps
-    )
+        max_episode_steps    )
     sim_path_collector = MdpPathCollector(
         sim_expl_env,
         policy,
-        max_episode_steps
-    )
+        max_episode_steps    )
     sim_replay_buffer= EnvReplayBuffer(
         variant['replay_buffer_size'],
         sim_expl_env,
@@ -91,7 +99,7 @@ def experiment(variant):
         qf2=qf2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
-        # hardcode_classifier=variant['hardcode_classifier'],
+        seed= variant['seed'], 
         **variant['trainer_kwargs']
     )
     algorithm = TorchBatchRLAlgorithm(
@@ -113,11 +121,15 @@ def experiment(variant):
         sim_replay_buffer=sim_replay_buffer,
         real_replay_buffer= real_replay_buffer,
 
-        num_real_steps_at_init=     50    if variant['rl_on_real'] else 5000,
-        num_sim_steps_at_init=      0       if variant['rl_on_real'] else 5000,
-        num_real_steps_per_epoch=   0     if variant['rl_on_real'] else 100 if variant['num_classifier_train_steps_per_iter'] else 0,
-        num_sim_steps_per_epoch=    0       if variant['rl_on_real'] else 5000 if variant['num_classifier_train_steps_per_iter'] else 5000,
-        num_rl_train_steps_per_iter=1,
+        num_real_steps_at_init=     variant['init_episode']*max_episode_steps if not variant['hardcode_classifier'] else 0, #if variant['rl_on_real']                               else 10*max_episode_steps,
+        num_sim_steps_at_init=      0  if variant['rl_on_real'] else 100*max_episode_steps ,
+        num_real_steps_per_epoch=   variant['init_episode']*max_episode_steps \
+                                        if variant['rl_on_real'] and not variant['batch_rl'] \
+                                        else 2*max_episode_steps 
+                                        if variant['num_classifier_train_steps_per_iter'] and not variant['batch_rl'] \
+                                        else 0,
+        num_sim_steps_per_epoch=    0  if variant['rl_on_real'] else 100*max_episode_steps, # if variant['hardcode_classifier']# or variant['num_classifier_train_steps_per_iter'], #at 0 sac is also not getting the new training sim data then.
+        # num_rl_train_steps_per_iter=1,
 
         rl_on_real=variant['rl_on_real'],
         modify_reward=False if variant['rl_on_real']==True else True,
@@ -130,7 +142,9 @@ def experiment(variant):
         hardcode_classifier=variant['hardcode_classifier'],
         init_paths_random=variant['init_paths_random'],
         constant_start_state_init=variant['constant_start_state_init'],
-        constant_start_state_while_training=variant['constant_start_state_while_training']
+        constant_start_state_while_training=variant['constant_start_state_while_training'],
+        should_plot=variant['should_plot'], 
+        seed= variant['seed'], 
     )
     algorithm.to(ptu.device)
     algorithm.train()
@@ -139,19 +153,30 @@ def experiment(variant):
 
 if __name__ == "__main__":
 
+
+    parser= argparse.ArgumentParser()
+    parser.add_argument("-s","--seed", type=int, default=1 )
+    parser.add_argument("-r","--resize_factor", type=int, default=1 )
+    parser.add_argument("-n", "--name", type=str, default="unnamed")
+    parser.add_argument("-i", "--init_episodes", type=int, default=10)
+    args=parser.parse_args()
+    print(args.seed)
+    print(args.resize_factor)
+    # args = sys.argv[1:]
+    # print(args)
     variant = dict(
         algorithm="SAC",
         version="normal",
         layer_size=256,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=22,
-            num_eval_steps_per_epoch=5000,
+            num_epochs=80,
+            num_eval_steps_per_epoch=500*args.resize_factor,
             num_trains_per_train_loop=1000,
             # num_expl_steps_per_train_loop=1000,
             # min_num_steps_before_training=1000,
             max_path_length=1000,
-            max_episode_length=50,
+            max_episode_length=50*args.resize_factor,
             batch_size=256,
         ),   
         trainer_kwargs=dict( 
@@ -163,19 +188,22 @@ if __name__ == "__main__":
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
-        rl_on_real=True,
+        rl_on_real=False,
+        batch_rl=False,
+        init_episode=args.init_episodes, 
         hardcode_classifier=False, 
+        num_classifier_init_epoch=100,
         num_classifier_train_steps_per_iter=0,
-        num_classifier_init_epoch=0,
         sparse=True,
-        tolerance=1,#needed for rewards if sparse, and also for calculating accuracy\
+        tolerance=1*args.resize_factor,#needed for rewards if sparse, and also for calculating accuracy\
         init_paths_random=True,
         constant_start_state_init=False, 
-        constant_start_state_while_training=False
-        
-
+        constant_start_state_while_training=False, 
+        should_plot=False,
+        resize_factor=args.resize_factor,
+        seed=args.seed
     )
-    setup_logger('name-of-experiment', variant=variant)
+    setup_logger('name-of-experiment', variant=variant, args=args)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant) 
 

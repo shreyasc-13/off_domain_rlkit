@@ -39,10 +39,13 @@ class SACTrainer(TorchTrainer):
 
             use_automatic_entropy_tuning=True,
             target_entropy=None, 
-            classifier=None
+            classifier=None,
+            seed=1
 
     ):
+        torch.manual_seed(seed)
         super().__init__()
+
         self.env = env
         self.policy = policy
         self.qf1 = qf1
@@ -109,7 +112,8 @@ class SACTrainer(TorchTrainer):
             deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
             rewards=rewards+deltaR
             # import pdb;pdb.set_trace()
-            if plot_classifier:
+            if plot_classifier and subplot_num:
+
                 plt.subplot(subplot_num[0],subplot_num[1], subplot_num[2] )
                 cm = plt.cm.get_cmap('RdYlBu')
                 sc = plt.scatter(obs[:,0].tolist(),obs[:,1].tolist(), marker='.',  c=deltaR, cmap=cm)

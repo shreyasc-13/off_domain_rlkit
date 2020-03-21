@@ -8,7 +8,7 @@ from classifiers import classifier, mixer, convert_to_SAS_input_form
 import matplotlib as mpl
 mpl.use('TkAgg')  # or whatever other backend that you want
 import matplotlib.pyplot as plt
-import torch
+# import torch
 # from pointenv import plot_env
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D # <--- This is important for 3d plotting 
@@ -49,7 +49,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             hardcode_classifier=False, 
             init_paths_random=False,
             constant_start_state_init=True, 
-            constant_start_state_while_training=True
+            constant_start_state_while_training=True, 
+            should_plot=False, 
+            seed=1
     ):
 
 
@@ -99,6 +101,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.init_paths_random=init_paths_random, 
         self.constant_start_state_init=constant_start_state_init
         self.constant_start_state_while_training=constant_start_state_while_training
+        self.should_plot=should_plot
+        self.seed=seed
+        self.num_rows=0
+        self.num_cols=0
+        self.subplot_num=0
 
     def _train(self):
 
@@ -114,15 +121,15 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             if self.hardcode_classifier:
                 self.classifier=classifier(hardcode=self.hardcode_classifier,  real_env=self.real_exploration_env, sim_env=self.sim_exploration_env,)
             else:
-                self.classifier=classifier()
+                self.classifier=classifier(seed=self.seed)
                 self.classifier.classifier_init_training( sim_init_memory,real_init_memory, 
                                                             init_classifier_batch_size=self.classifier_batch_size, 
                                                             num_epochs=self.num_classifier_init_epoch)
         
 
         # for num_epochs(default 3000), evaluate 
-
-        self.plot_path_before_training() #plot all epoch results
+        if self.should_plot:
+            self.plot_path_before_training() #plot all epoch results
 
         for epoch in gt.timed_for(range(self._start_epoch, self.num_epochs),save_itrs=True,):
             self.training_SAC=True
@@ -149,7 +156,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                                             modify_reward=True, 
                                             classifier=self.classifier.SAS_Network.predict,
                                             plot_classifier=True if (not (epoch-1)%self.plot_episodes_period and not train_num) else False, 
-                                            subplot_num= (self.num_rows, self.num_cols, self.plot_num+ 4*self.num_cols) if (epoch and not train_num) else None
+                                            subplot_num= (self.num_rows, self.num_cols, self.plot_num+ 4*self.num_cols) if (epoch and self.should_plot and not train_num) else None
                                             )
                         else:
                             self.trainer.train(train_data,
@@ -181,11 +188,12 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.evaluate(epoch)
 
             self._end_epoch(epoch) # logs all statistics
-            if not epoch%self.plot_episodes_period:
+            if self.should_plot and not epoch%self.plot_episodes_period:
                 self.plot_path_steps(epoch)
         # self.eval_new_paths=self.evaluate(epoch)
         # self._end_epoch(epoch)
-        plt.show()
+        if self.should_plot:
+            plt.show()
 
 
     def SAC_burn_in_memory(self, use_policy):
@@ -314,7 +322,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
 
         colormap = plt.cm.gist_ncar
-        plt.gca().set_color_cycle([colormap(i) for i in np.linspace(0, 0.9, num_paths)])
+        plt.gca().set_prop_cycle(color=[colormap(i) for i in np.linspace(0, 0.9, num_paths)])
 
         eval_new_paths=[self.eval_real_new_paths, self.eval_sim_new_paths]
         
@@ -322,8 +330,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         for j in range(len(eval_new_paths)):
             plt.subplot(self.num_rows, self.num_cols, self.plot_num+ j*self.num_cols)
             plt.title("epoch"+ str(epoch))
-            plt.ylim(0, 7)
-            plt.xlim(0, 7)
+            # m_expl_env.observation_space.low[0]
+            plt.ylim(self.sim_exploration_env.observation_space.low[0], self.sim_exploration_env.observation_space.high[0])
+            plt.xlim(self.sim_exploration_env.observation_space.low[1], self.sim_exploration_env.observation_space.high[1])
             # print(i,j)
             # plt.title str(epoch))
             print(len(eval_new_paths[j]))
@@ -336,7 +345,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.threeD_data_distribution( eval_new_paths[j], 
                                             j, 
                                             bin_size=7,
-                                        env_range=[0,7], 
+                                        env_range=[self.sim_exploration_env.observation_space.low[0], self.sim_exploration_env.observation_space.high[0]], 
                                         subplot_num= (self.num_rows, self.num_cols, self.plot_num+ (2+j)*self.num_cols),
                                         title= "RealWorld Evaluation State Distribution")
         plot_classifier=True

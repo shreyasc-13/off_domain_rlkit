@@ -163,6 +163,7 @@ class  Networks(object ):
             train_acc = 0
             for batch_idx, (data, label) in enumerate(self.train_loader):
                 train_loss, train_acc=self.train(data, label)
+
             loss=self.validate(epoch)
             epoch+=1
 
@@ -227,7 +228,10 @@ class SAS_hardcode():
         return torch.cat([(1 - p_real)[:,None], p_real[:, None]], dim=1)
 
 class classifier:   
-    def __init__( self,  init_classifier_batch_size=1024,hardcode=False, real_env=None,  sim_env=None):
+    def __init__( self,  init_classifier_batch_size=1024,hardcode=False, real_env=None,  sim_env=None, seed=1):
+        torch.manual_seed(seed)
+        cuda = torch.cuda.is_available()
+        device = torch.device("cuda" if cuda else "cpu")
         if hardcode==True:
             self.SAS_hardcode=SAS_hardcode(sim_env, real_env)
         else:

@@ -36,6 +36,16 @@ WALLS = {
 }
 
 
+def resize_walls(walls, factor):
+    (height, width) = walls.shape
+    row_indices = np.array([i for i in range(height) for _ in range(factor)])
+    col_indices = np.array([i for i in range(width) for _ in range(factor)])
+    walls = walls[row_indices]
+    walls = walls[:, col_indices]
+    assert walls.shape == (factor * height, factor * width)
+    return walls
+
+
 class PointEnv(gym.Env):
 
     def __init__(self, walls=None, sparse=False, tolerance=1, resize_factor=1,
@@ -64,7 +74,7 @@ class PointEnv(gym.Env):
 
     def _sample_empty_state(self,constant_start ):
         if constant_start==True:
-            state=np.array((0.5, 6.0))
+            state=np.array((self.observation_space.low[0]+1,self.observation_space.high[1]-1))
         else:
             candidate_states = np.where(self._walls == 0)
             num_candidate_states = len(candidate_states[0])
