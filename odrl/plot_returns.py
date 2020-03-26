@@ -73,33 +73,61 @@ import os
 # plt.show()
 
 
-plot_folder="/home/swapnil/DRL/offDyna/rlkit-master/rlkit/data/name-of-experiment/batch2/"
+plot_folder="/home/swapnil/DRL/offDyna/rlkit-master/rlkit/data/name-of-experiment/"#batch3/"
 
 dirs=os.listdir(plot_folder)
 dirs= [os.path.join(plot_folder, dir_) for dir_ in dirs]
 # print(dirs)
-substrs=["-real","-batch_real",  "-hardcode"]# , "-classifier_online", "-classifier_offline", "-hardcode"]
-color=["r", "m",  "g"]#, "c", "b"]
+# for dir_ in dirs:
+# if  "classifier_online-" in dir_:
+# 	os.rename(dir_,dir_[-9]+"ff"+dir_[-8:])
 
-resize=["5", "7", "9"]
-plt.figure(figsize=(20,20))
-for j in range(len(resize)):
-	for i in range(len(substrs)):
-		for folder in dirs:
-			print(folder)
-			if  resize[j]+substrs[i] in folder and os.path.isfile(os.path.join(folder,"progress.csv")):
-				print(folder,resize[j]+substrs[i]  )
+ 
+substrs=["-batch_rl_on_real_iid",  "-classifier_offline_iid"]#, "-classifier_online2", "-sim_online"]#, "-batch_rl_big"]# , "-classifier_online", "-classifier_offline", "-hardcode"]
+color=[ "m",  "b"]#, "c", "b"]#, "pink"]#"r",, "c", "b"]
 
-				data=pd.read_csv(os.path.join(folder,"progress.csv"))
-				num_real=data["real_exploration/num steps total"].tolist()
-				returns=data['eval_real/Returns Mean'].tolist()
-				pathbreak=folder.split("-")
-				# print(pathbreak)
-				# plt.title("resized env factor: "+resize[j])
-				plt.subplot(2,3, j+1)
-				plt.plot(num_real, returns,alpha=0.4, color=color[i],label=substrs[i])
-				plt.subplot(2,3, j+4)
-				plt.plot(returns, alpha=0.4, color=color[i], label=substrs[i])
+resize=["9"]#"5", "7", 
+init=["-5","-10","-12", "-15", "-20",  "-50"]
+# init=["-10","-12", "-15", "-20","-30",  "-50", "-100", "-200"]
+
+fig=plt.figure(figsize=(30,4))
+for k in range(len(init)):
+	for j in range(len(resize)):
+		for i in range(len(substrs)):
+			for folder in dirs:
+				# print(folder)
+				if  folder.endswith(resize[j]+substrs[i]+ init[k]) and os.path.isfile(os.path.join(folder,"progress.csv")):
+					print(folder,resize[j]+substrs[i], init[k] )
+					data=pd.read_csv(os.path.join(folder,"progress.csv"))
+					num_real=data["real_exploration/num steps total"].tolist()
+					returns=data['eval_real/Returns Mean'].tolist()
+					pathbreak=folder.split("-")
+					ax = fig.add_subplot(2,8, k+9)
+					ax.tick_params(axis='both', which='major', labelsize=5)
+
+					# plt.subplot(2,8, k+9)
+					plt.xlabel("num epochs", fontsize="x-small");
+					plt.ylabel("returns",  fontsize="x-small")
+					plt.plot(returns, alpha=0.4, color=color[i])#, label=substrs[i] if substrs[i]=="-batch_rl" else "classifier_offline")
+					
+					ax = fig.add_subplot(2,8, k+1)
+					ax.tick_params(axis='both', which='major', labelsize=5)
+
+					plt.xlabel("num steps total",  fontsize="x-small");
+					plt.ylabel("returns",  fontsize="x-small")
+					plt.title("num of real init steps: " +str(int(init[k][1:])*450),  fontsize="small")
+
+					plt.plot(num_real, returns,alpha=0.4, color=color[i])#,label=substrs[i] if substrs[i]=="-batch_rl" else "classifier_offline" )
+					plt.tight_layout()
+
+	# handles, labels = pyplot.gca().get_legend_handles_labels()
+	# newLabels, newHandles = [], []
+	# for handle, label in zip(handles, labels):
+	#   if label not in newLabels:
+	#     newLabels.append(label)
+ #    	newHandles.append(handle)
+	# pyplot.legend(newHandles, newLabels)
+	# plt.legend( loc="lower right", fontsize="x-small")
 plt.show()
 			
 

@@ -10,7 +10,7 @@ class MdpPathCollector(PathCollector):
             self,
             env,
             policy,
-            max_env_steps=50,
+            # max_env_steps=50,
             max_num_epoch_paths_saved=None,
             render=False,
             render_kwargs=None,
@@ -26,7 +26,7 @@ class MdpPathCollector(PathCollector):
 
         self._num_steps_total = 0
         self._num_paths_total = 0
-        self.max_env_steps=max_env_steps
+        # self.max_env_steps=max_env_steps
 
     def collect_new_paths(
             self,
@@ -47,7 +47,7 @@ class MdpPathCollector(PathCollector):
             path = rollout(
                 self._env,
                 self._policy,
-                max_path_length=min(self.max_env_steps,num_steps - num_steps_collected), 
+                max_path_length=max_path_length_this_loop, #min(self.max_env_steps,num_steps - num_steps_collected), 
                 collect_random_path=collect_random_path, 
                 constant_start_state=constant_start_state
             )

@@ -109,8 +109,8 @@ def experiment(variant):
         evaluation_sim_env=sim_eval_env,
         evaluation_real_env=real_eval_env,
         batch_size=variant['algorithm_kwargs']['batch_size'],
-        max_path_length=variant['algorithm_kwargs']['max_path_length'],
-        max_episode_steps=variant['algorithm_kwargs']['max_episode_length'],
+        max_path_length=variant['algorithm_kwargs']['max_episode_length'],
+        # max_episode_steps=variant['algorithm_kwargs']['max_episode_length'],
         num_epochs=variant['algorithm_kwargs']['num_epochs'],
         num_eval_steps_per_epoch=variant['algorithm_kwargs']['num_eval_steps_per_epoch'],
         num_trains_per_train_loop=variant['algorithm_kwargs']['num_trains_per_train_loop'],
@@ -121,14 +121,14 @@ def experiment(variant):
         sim_replay_buffer=sim_replay_buffer,
         real_replay_buffer= real_replay_buffer,
 
-        num_real_steps_at_init=     variant['init_episode']*max_episode_steps if not variant['hardcode_classifier'] else 0, #if variant['rl_on_real']                               else 10*max_episode_steps,
+        num_real_steps_at_init=     variant['init_episode']*max_episode_steps, # if not variant['hardcode_classifier'] else 0, #if variant['rl_on_real']  alse 10*max_episode_steps,
         num_sim_steps_at_init=      0  if variant['rl_on_real'] else 100*max_episode_steps ,
         num_real_steps_per_epoch=   variant['init_episode']*max_episode_steps \
                                         if variant['rl_on_real'] and not variant['batch_rl'] \
                                         else 2*max_episode_steps 
                                         if variant['num_classifier_train_steps_per_iter'] and not variant['batch_rl'] \
                                         else 0,
-        num_sim_steps_per_epoch=    0  if variant['rl_on_real'] else 100*max_episode_steps, # if variant['hardcode_classifier']# or variant['num_classifier_train_steps_per_iter'], #at 0 sac is also not getting the new training sim data then.
+        num_sim_steps_per_epoch=    0  if variant['rl_on_real'] else 100*max_episode_steps, # if variant['hardcode_classifier']# or variant['num_classifier_train_steps_per_iter'], 
         # num_rl_train_steps_per_iter=1,
 
         rl_on_real=variant['rl_on_real'],
@@ -170,12 +170,12 @@ if __name__ == "__main__":
         layer_size=256,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=80,
+            num_epochs=60,
             num_eval_steps_per_epoch=500*args.resize_factor,
             num_trains_per_train_loop=1000,
             # num_expl_steps_per_train_loop=1000,
             # min_num_steps_before_training=1000,
-            max_path_length=1000,
+            # max_path_length=1000,
             max_episode_length=50*args.resize_factor,
             batch_size=256,
         ),   
@@ -188,14 +188,14 @@ if __name__ == "__main__":
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
-        rl_on_real=False,
-        batch_rl=False,
+        rl_on_real=True,
+        batch_rl=True,
+        hardcode_classifier=False , 
         init_episode=args.init_episodes, 
-        hardcode_classifier=False, 
-        num_classifier_init_epoch=100,
+        num_classifier_init_epoch=0,
         num_classifier_train_steps_per_iter=0,
         sparse=True,
-        tolerance=1*args.resize_factor,#needed for rewards if sparse, and also for calculating accuracy\
+        tolerance=1*args.resize_factor,#needed for rewards if sparse, and also for calculating accuracy
         init_paths_random=True,
         constant_start_state_init=False, 
         constant_start_state_while_training=False, 
