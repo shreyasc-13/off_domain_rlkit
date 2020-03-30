@@ -19,13 +19,6 @@ def get_data(sim_memory,real_memory):
     valX=X[int(len_data*.90):]
     valY=Y[int(len_data*.90):]
     return trainX,trainY,valX,valY, None, None
-    # trainX=X[:int(len_data*.80)]
-    # trainY=Y[:int(len_data*.80)]
-    # valX=X[int(len_data*.80): int(len_data*.90)]
-    # valY=Y[int(len_data*.80): int(len_data*.90)]
-    # testX=X[int(len_data*.90):]
-    # testY=Y[int(len_data*.90):]
-    # return trainX,trainY,valX,valY,testX,testY
 
  
 def mixer(X, X1):
@@ -85,7 +78,7 @@ class Network(nn.Module):
 
 
 
-class  Networks(object ):
+class  ClassifierTrainerAndValidator(object ):
     def __init__(self, Network , optimizer, 
                         batch_size ,scheduler, 
                         train_loader,val_loader,
@@ -145,7 +138,6 @@ class  Networks(object ):
             self.scheduler.step(val_loss) 
             self.metrics["loss"].append(val_loss)
             self.metrics["acc"].append(val_acc)
-
             print("Epoch {},  Val Loss: {}, Val Accuracy: {}".format(epoch+1, val_loss, val_acc))
             return val_loss
 
@@ -217,14 +209,14 @@ class SAS_hardcode():
         # blocking=[[0 for i in range(7)] for j in range (7)]
         # for i in range(7):
         #     for j in range(7):
-        #         blocking[i][j]=self.real_env._is_blocked(np.array((i+0.5,j+0.5)))
+        #         blocking[i][j]=self.real_env._is_blocked(np.array((i+0.5,j+0.5)))631  111.91  160 2
         # print(blocking)
-        # import matplotlib.pyplot as plt
-        # cm = plt.cm.get_cmap('RdYlBu')
-        # print(next_states)
-        # sc = plt.scatter(next_states[:,0].tolist(),next_states[:,1].tolist(), marker='.',  c=p_real, cmap=cm)
-        # plt.colorbar(sc)
-        # plt.show()
+        import matplotlib.pyplot as plt
+        cm = plt.cm.get_cmap('RdYlBu')
+        print(next_states)
+        sc = plt.scatter(next_states[:,0].tolist(),next_states[:,1].tolist(), marker='.',  c=p_real, cmap=cm)
+        plt.colorbar(sc)
+        plt.show()
         return torch.cat([(1 - p_real)[:,None], p_real[:, None]], dim=1)
 
 class classifier:   
@@ -249,7 +241,7 @@ class classifier:
         train_dataloader=DataLoader(train_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)
         val_dataset =SAS_loader(valX,valY)
         val_dataloader=DataLoader(val_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)
-        self.SAS_Network =   Networks( Network=self.SAS_model ,
+        self.SAS_Network =   ClassifierTrainerAndValidator( Network=self.SAS_model ,
                                     optimizer=self.SAS_optimizer,     
                                     batch_size=self.batch_size, 
                                     scheduler=self.SAS_scheduler, 
@@ -290,3 +282,8 @@ class SAS_loader(Dataset):
         
     def __len__(self):
         return len(self.Y)
+
+
+
+
+

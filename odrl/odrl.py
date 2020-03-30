@@ -37,7 +37,6 @@ def experiment(variant):
     real_expl_env = PointEnv(real_env_name, sparse, tolerance, resize_factor)
     real_eval_env = PointEnv(real_env_name, sparse, tolerance, resize_factor)
     obs_dim = sim_expl_env.observation_space.low.size
-    print(obs_dim)
     action_dim = sim_expl_env.action_space.low.size
     max_episode_steps=variant['algorithm_kwargs']['max_episode_length']
     M = variant['layer_size']
@@ -100,6 +99,7 @@ def experiment(variant):
         target_qf1=target_qf1,
         target_qf2=target_qf2,
         seed= variant['seed'], 
+        SA=bool(variant['num_SA']), 
         **variant['trainer_kwargs']
     )
     algorithm = TorchBatchRLAlgorithm(
@@ -122,13 +122,13 @@ def experiment(variant):
         real_replay_buffer= real_replay_buffer,
 
         num_real_steps_at_init=     variant['init_episode']*max_episode_steps, # if not variant['hardcode_classifier'] else 0, #if variant['rl_on_real']  alse 10*max_episode_steps,
-        num_sim_steps_at_init=      0  if variant['rl_on_real'] else 100*max_episode_steps ,
+        num_sim_steps_at_init=      0  if variant['rl_on_real'] else max(variant['init_episode'], 100)*max_episode_steps ,
         num_real_steps_per_epoch=   variant['init_episode']*max_episode_steps \
                                         if variant['rl_on_real'] and not variant['batch_rl'] \
                                         else 2*max_episode_steps 
                                         if variant['num_classifier_train_steps_per_iter'] and not variant['batch_rl'] \
                                         else 0,
-        num_sim_steps_per_epoch=    0  if variant['rl_on_real'] else 100*max_episode_steps, # if variant['hardcode_classifier']# or variant['num_classifier_train_steps_per_iter'], 
+        num_sim_steps_per_epoch=    0  if variant['rl_on_real'] else max(variant['init_episode'], 100)*max_episode_steps, # if variant['hardcode_classifier']# or variant['num_classifier_train_steps_per_iter'], 
         # num_rl_train_steps_per_iter=1,
 
         rl_on_real=variant['rl_on_real'],
@@ -145,6 +145,8 @@ def experiment(variant):
         constant_start_state_while_training=variant['constant_start_state_while_training'],
         should_plot=variant['should_plot'], 
         seed= variant['seed'], 
+        num_SA=variant['num_SA'] ,
+        num_SAS=variant['num_SAS'],
     )
     algorithm.to(ptu.device)
     algorithm.train()
@@ -158,7 +160,7 @@ if __name__ == "__main__":
     parser.add_argument("-s","--seed", type=int, default=1 )
     parser.add_argument("-r","--resize_factor", type=int, default=1 )
     parser.add_argument("-n", "--name", type=str, default="unnamed")
-    parser.add_argument("-i", "--init_episodes", type=int, default=10)
+    parser.add_argument("-i", "--init_episodes", type=int, default=100)
     args=parser.parse_args()
     print(args.seed)
     print(args.resize_factor)
@@ -170,7 +172,7 @@ if __name__ == "__main__":
         layer_size=256,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=60,
+            num_epochs=80,
             num_eval_steps_per_epoch=500*args.resize_factor,
             num_trains_per_train_loop=1000,
             # num_expl_steps_per_train_loop=1000,
@@ -188,11 +190,11 @@ if __name__ == "__main__":
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
-        rl_on_real=True,
-        batch_rl=True,
+        rl_on_real=False,
+        batch_rl=False,
         hardcode_classifier=False , 
         init_episode=args.init_episodes, 
-        num_classifier_init_epoch=0,
+        num_classifier_init_epoch=500,
         num_classifier_train_steps_per_iter=0,
         sparse=True,
         tolerance=1*args.resize_factor,#needed for rewards if sparse, and also for calculating accuracy
@@ -201,9 +203,10 @@ if __name__ == "__main__":
         constant_start_state_while_training=False, 
         should_plot=False,
         resize_factor=args.resize_factor,
-        seed=args.seed
+        seed=args.seed, 
+        num_SA=0, 
+        num_SAS=3
     )
     setup_logger('name-of-experiment', variant=variant, args=args)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant) 
-

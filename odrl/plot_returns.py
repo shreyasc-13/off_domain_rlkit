@@ -83,11 +83,11 @@ dirs= [os.path.join(plot_folder, dir_) for dir_ in dirs]
 # 	os.rename(dir_,dir_[-9]+"ff"+dir_[-8:])
 
  
-substrs=["-batch_rl_on_real_iid",  "-classifier_offline_iid"]#, "-classifier_online2", "-sim_online"]#, "-batch_rl_big"]# , "-classifier_online", "-classifier_offline", "-hardcode"]
-color=[ "m",  "b"]#, "c", "b"]#, "pink"]#"r",, "c", "b"]
+substrs=["-batch_rl_on_real_iid", "-barch_rl_iid",  "-classifier_offline_iid"]#, "-classifier_online2", "-sim_online"]#, "-batch_rl_big"]# , "-classifier_online", "-classifier_offline", "-hardcode"]
+color=[ "m", "m",  "b"]#, "c", "b"]#, "pink"]#"r",, "c", "b"]
 
 resize=["9"]#"5", "7", 
-init=["-5","-10","-12", "-15", "-20",  "-50"]
+init=["-5","-10","-12", "-15", "-20",  "-50", "-100", "-200", "-500"]
 # init=["-10","-12", "-15", "-20","-30",  "-50", "-100", "-200"]
 
 fig=plt.figure(figsize=(30,4))
@@ -102,7 +102,7 @@ for k in range(len(init)):
 					num_real=data["real_exploration/num steps total"].tolist()
 					returns=data['eval_real/Returns Mean'].tolist()
 					pathbreak=folder.split("-")
-					ax = fig.add_subplot(2,8, k+9)
+					ax = fig.add_subplot(2,9, k+10)
 					ax.tick_params(axis='both', which='major', labelsize=5)
 
 					# plt.subplot(2,8, k+9)
@@ -110,12 +110,12 @@ for k in range(len(init)):
 					plt.ylabel("returns",  fontsize="x-small")
 					plt.plot(returns, alpha=0.4, color=color[i])#, label=substrs[i] if substrs[i]=="-batch_rl" else "classifier_offline")
 					
-					ax = fig.add_subplot(2,8, k+1)
+					ax = fig.add_subplot(2,9, k+1)
 					ax.tick_params(axis='both', which='major', labelsize=5)
 
 					plt.xlabel("num steps total",  fontsize="x-small");
 					plt.ylabel("returns",  fontsize="x-small")
-					plt.title("num of real init steps: " +str(int(init[k][1:])*450),  fontsize="small")
+					plt.title("num of real init steps: " +str(float(init[k][1:])*.450)+"k",  fontsize="small")
 
 					plt.plot(num_real, returns,alpha=0.4, color=color[i])#,label=substrs[i] if substrs[i]=="-batch_rl" else "classifier_offline" )
 					plt.tight_layout()

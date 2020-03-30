@@ -4,7 +4,7 @@ import gtimer as gt
 from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import PathCollector
-from classifiers import classifier, mixer, convert_to_SAS_input_form
+from classifiers_redo import classifier_ensambler, classifier#, mixer, convert_to_SAS_input_form
 import matplotlib as mpl
 mpl.use('TkAgg')  # or whatever other backend that you want
 import matplotlib.pyplot as plt
@@ -51,7 +51,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             constant_start_state_init=True, 
             constant_start_state_while_training=True, 
             should_plot=False, 
-            seed=1
+            seed=1,
+            num_SA=0,
+            num_SAS=1
     ):
 
 
@@ -107,6 +109,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_rows=0
         self.num_cols=0
         self.subplot_num=0
+        self.num_SA=num_SA
+        self.num_SAS=num_SAS
 
     def _train(self):
 
@@ -116,16 +120,13 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
  
         #If our method: train the classifier on INIT replay buffer.
         if not self.rl_on_real:
-            if self.hardcode_classifier:
-                self.classifier=classifier(hardcode=self.hardcode_classifier,  real_env=self.real_exploration_env, sim_env=self.sim_exploration_env,)
-            else:
-                self.classifier=classifier(seed=self.seed)
-                if(self.num_sim_steps_at_init and self.num_real_steps_at_init):
-                    sim_init_memory=self.sim_replay_buffer.random_batch(self.num_sim_steps_at_init )
-                    real_init_memory=self.real_replay_buffer.random_batch(self.num_real_steps_at_init)
-                    self.classifier.classifier_init_training( sim_init_memory,real_init_memory, 
-                                                            init_classifier_batch_size=self.classifier_batch_size, 
-                                                            num_epochs=self.num_classifier_init_epoch)
+            self.classifier=classifier_ensambler(num_SA=self.num_SA, num_SAS=self.num_SAS, seed=self.seed, hardcode=self.hardcode_classifier,  real_env=self.real_exploration_env, sim_env=self.sim_exploration_env)
+            if not self.hardcode_classifier and self.num_sim_steps_at_init and self.num_real_steps_at_init:
+                sim_init_memory=self.sim_replay_buffer.random_batch(self.num_sim_steps_at_init )
+                real_init_memory=self.real_replay_buffer.random_batch(self.num_real_steps_at_init)
+                self.classifier.classifier_init_training( sim_init_memory,real_init_memory, 
+                                                        init_classifier_batch_size=self.classifier_batch_size, 
+                                                        num_epochs=self.num_classifier_init_epoch)
         
 
         # for num_epochs(default 3000), evaluate 
@@ -156,14 +157,14 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         if not self.hardcode_classifier:
                             self.trainer.train(train_data,
                                             modify_reward=True, 
-                                            classifier=self.classifier.SAS_Network.predict,
+                                            classifier=self.classifier.predict,
                                             plot_classifier=True if (not (epoch-1)%self.plot_episodes_period and not train_num) else False, 
                                             subplot_num= (self.num_rows, self.num_cols, self.plot_num+ 4*self.num_cols) if (epoch and self.should_plot and not train_num) else None
                                             )
                         else:
                             self.trainer.train(train_data,
                                             modify_reward=True, 
-                                            classifier=self.classifier.SAS_hardcode.predict)
+                                            classifier=self.classifier.hardcode_predict)
             if not self.rl_on_real and not self.hardcode_classifier:
                 #train the classifier with random samples from both the buffers
                 for _ in range(self.num_classifier_train_steps_per_iter):

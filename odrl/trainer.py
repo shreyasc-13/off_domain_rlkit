@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import torch.optim as optim
 from torch import nn as nn
 import copy
-from classifiers import get_data, mixer, convert_to_SAS_input_form, SAS_loader, Network, Networks, init_model, DataLoader
+# from classifiers import get_data, mixer, convert_to_SAS_input_form, SAS_loader, Network, Networks, init_model, DataLoader
 
 class SACTrainer(TorchTrainer):
     def __init__(
@@ -40,7 +40,8 @@ class SACTrainer(TorchTrainer):
             use_automatic_entropy_tuning=True,
             target_entropy=None, 
             classifier=None,
-            seed=1
+            seed=1,
+            SA=False
 
     ):
         torch.manual_seed(seed)
@@ -92,6 +93,7 @@ class SACTrainer(TorchTrainer):
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
         self.logs={"policy_training_loss":[], "policy_val_loss":[], }
+        self.SA=SA
 
 
 
@@ -108,8 +110,10 @@ class SACTrainer(TorchTrainer):
         if modify_reward:
             classifier_input=  torch.cat((obs, actions), 1)
             classifier_input=  torch.cat((classifier_input, next_obs), 1)
-            outSAS=classifier(classifier_input)
+            outSAS, outSA=classifier(classifier_input)
             deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
+            if self.SA:
+                deltaR-=(torch.log(outSA[:, 1]) - torch.log(outSA[:, 0])).reshape((-1,1))
             rewards=rewards+deltaR
             # import pdb;pdb.set_trace()
             if plot_classifier and subplot_num:
