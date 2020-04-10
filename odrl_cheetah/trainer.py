@@ -11,7 +11,7 @@ import torch
 import torch.optim as optim
 from torch import nn as nn
 import copy
-from classifiers import get_data, mixer, convert_to_SAS_input_form, SAS_loader, Network, Networks, init_model, DataLoader
+# from classifiers import get_data, mixer, convert_to_SAS_input_form, SAS_loader, Network, Networks, init_model, DataLoader
 
 '''
 Class for running SAC with option of reward shaping

@@ -14,15 +14,23 @@ from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 # from half_cheetah import HalfCheetahEnv
-from pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv
+from pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv, HalfCheetahHurdleBulletEnv
+from pybullet_envs.kukaGymEnv import KukaGymEnv
 from plot_scripts import plotting_evalreturns
 
 def experiment(variant):
+    #Note: is_real can now be considered as a flag for varying friction
+    # sim_expl_env = NormalizedBoxEnv(HalfCheetahBulletEnv())
+    # sim_eval_env = NormalizedBoxEnv(HalfCheetahBulletEnv())
+    # real_expl_env = NormalizedBoxEnv(HalfCheetahHurdleBulletEnv())
+    # real_eval_env = NormalizedBoxEnv(HalfCheetahHurdleBulletEnv())
 
-    sim_expl_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=False))
-    sim_eval_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=False))
-    real_expl_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=True))
-    real_eval_env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=True))
+    #Kuka
+    #Shreyas TODO: Make a dict for the env init
+    sim_expl_env = KukaGymEnv()
+    sim_eval_env = KukaGymEnv()
+    real_eval_env = KukaGymEnv() #change lol
+    real_expl_env = KukaGymEnv()
 
     obs_dim = real_expl_env.observation_space.low.size
     action_dim = real_eval_env.action_space.low.size
@@ -108,7 +116,7 @@ def experiment(variant):
         real_replay_buffer= real_replay_buffer,
         num_real_steps_at_init=     1000    if variant['rl_on_real'] else 10000,
         num_sim_steps_at_init=      0       if variant['rl_on_real'] else 10000,
-        num_real_steps_per_epoch=   500     if variant['rl_on_real'] else 100 if variant['num_classifier_train_steps_per_iter'] else 0,
+        num_real_steps_per_epoch=   1000     if variant['rl_on_real'] else 100 if variant['num_classifier_train_steps_per_iter'] else 0,
         num_sim_steps_per_epoch=    0       if variant['rl_on_real'] else 500,
         num_rl_train_steps_per_iter=1,
 
@@ -128,19 +136,26 @@ def experiment(variant):
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
+
+    #mods for rl_on_real: Comment out: Shreyas comment
+    rl_on_real = True
+    num_epochs=1000
+    num_trains_per_train_loop=2000
+    real_reward_scaleup=1.
+
     variant = dict(
         algorithm="SAC",
         version="normal",
         layer_size=256,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=200,
+            num_epochs=num_epochs,
             num_eval_steps_per_epoch=5000,
-            num_trains_per_train_loop=1000,
+            num_trains_per_train_loop=num_trains_per_train_loop,
             # num_expl_steps_per_train_loop=1000,
             # min_num_steps_before_training=1000,
             max_path_length=1000,
-            max_episode_length=500, #Shreyas Note: Needs to be tweaked
+            max_episode_length=1000, #Shreyas Note: Needs to be tweaked: Possibly redundant
             batch_size=256,
         ),
         trainer_kwargs=dict(
@@ -151,15 +166,17 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
-            real_reward_scaleup = 10. #Shreyas edit
+            real_reward_scaleup=real_reward_scaleup #Shreyas edit
         ),
-        rl_on_real=False,
+        rl_on_real=rl_on_real,
         num_classifier_train_steps_per_iter=0,
         num_classifier_init_epoch=50,
 
         hardcode_classifier=False
     )
-    log_dir = setup_logger('name-of-experiment', variant=variant) #Returns absolute path
+    log_name = 'temp' #EDIT EACH TIME!!! #ori: 0.25
+    # log_name = 'rl_realenv_cpu'
+    log_dir = setup_logger(log_name, variant=variant) #Returns absolute path
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     # print(log_dir)
     experiment(variant)

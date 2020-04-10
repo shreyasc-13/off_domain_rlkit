@@ -5,13 +5,23 @@ import torch
 import uuid
 from rlkit.core import logger
 
+#Shreyas edit: (to get the modified env)
+from odrl_cheetah.pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv #To run from a director above
+from rlkit.envs.wrappers import NormalizedBoxEnv
+import gym
+from gym import wrappers
+
 filename = str(uuid.uuid4())
 
 
 def simulate_policy(args):
-    data = torch.load(args.file)
+    data = torch.load(args.file, map_location=torch.device('cpu'))
     policy = data['evaluation/policy']
-    env = data['evaluation/env']
+    # env = data['evaluation/env'] #Commented out to load the right modifed pybullet env
+    #Shreyas edit: ^ and v: To change for a different env
+    # env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=True))
+    env = NormalizedBoxEnv(gym.make('HalfCheetahHurdleBulletEnv-v0'))
+    # env = wrappers.Monitor(env, '~/Destop/', force=True) #TODO: add render saving
     print("Policy loaded")
     if args.gpu:
         set_gpu_mode(True)
@@ -23,9 +33,9 @@ def simulate_policy(args):
             max_path_length=args.H,
             render=True,
         )
-        if hasattr(env, "log_diagnostics"):
-            env.log_diagnostics([path])
-        logger.dump_tabular()
+        # if hasattr(env, "log_diagnostics"):
+        #     env.log_diagnostics([path])
+        # logger.dump_tabular()
 
 
 if __name__ == "__main__":

@@ -96,6 +96,8 @@ def rollout(
     """
     if render_kwargs is None:
         render_kwargs = {}
+    if render:
+        env.render(**render_kwargs)
     observations = []
     actions = []
     rewards = []
@@ -106,8 +108,6 @@ def rollout(
     agent.reset()
     next_o = None
     path_length = 0
-    if render:
-        env.render(**render_kwargs)
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)

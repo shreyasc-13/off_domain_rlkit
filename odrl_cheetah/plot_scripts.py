@@ -26,4 +26,4 @@ def plotting_evalreturns(log_dir, rl_on_real):
     plt.ylabel('Average returns')
     plt.xlabel('Epochs')
     # plt.show()
-    plt.savefig(log_dir+'/eval_return_realenv.png')
+    plt.savefig(log_dir+'/eval_return_realenv_%s.png'%train_env)

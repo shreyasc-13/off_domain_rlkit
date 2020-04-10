@@ -1,4 +1,4 @@
-name: rlkit
+name: rlkit_gpu
 channels:
 - kne  # for pybox2d
 - pytorch
@@ -22,7 +22,7 @@ dependencies:
 - patchelf
 - pip:
   - cloudpickle==0.5.2
-  - gym[all]==0.10.5
+  - gym==0.10.5
   - gitpython==2.1.7
   - gtimer==1.0.0b5
   - pygame==1.9.2

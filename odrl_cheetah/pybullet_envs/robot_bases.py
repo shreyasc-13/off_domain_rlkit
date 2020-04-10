@@ -131,7 +131,7 @@ class MJCFBasedRobot(XmlBasedRobot):
       if self.is_real:
           model_file = os.path.join(os.path.dirname(__file__), self.model_xml)
       else:
-          friction_value = np.random.normal([2, 0.5, 0.5], [2, 0.5, 0.5]) #Shreyas note: Hardcoded
+          friction_value = np.random.normal([4, 1, 1], [4, 1, 1]) #Shreyas note: Hardcoded
           self.edit_xml(friction_value)
           model_file = os.path.join(os.path.dirname(__file__), 'tmp', 'temp_model.xml')
 

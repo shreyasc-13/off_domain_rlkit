@@ -192,8 +192,14 @@ def register(id, *args, **kvargs):
 #          entry_point='pybullet_envs.gym_locomotion_envs:Walker2DBulletEnv',
 #          max_episode_steps=1000,
 #          reward_threshold=2500.0)
+
 register(id='HalfCheetahBulletEnv-v0',
          entry_point='pybullet_envs.gym_locomotion_envs:HalfCheetahBulletEnv',
+         max_episode_steps=1000,
+         reward_threshold=3000.0)
+
+register(id='HalfCheetahHurdleBulletEnv-v0',
+         entry_point='pybullet_envs.gym_locomotion_envs:HalfCheetahHurdleBulletEnv',
          max_episode_steps=1000,
          reward_threshold=3000.0)
 

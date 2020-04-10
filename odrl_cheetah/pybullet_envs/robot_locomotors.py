@@ -120,7 +120,13 @@ class HalfCheetah(WalkerBase):
                "bthigh"]  # track these contacts with ground
 
   def __init__(self, is_real = True):
-    WalkerBase.__init__(self, "half_cheetah.xml", "torso", action_dim=6, obs_dim=26, power=0.90, is_real=True)
+    WalkerBase.__init__(self, "half_cheetah.xml", "torso", action_dim=6, obs_dim=27, power=0.90, is_real=True) #Shreyas:obs_dim
+
+  #Shreyas edir: Adding xpos to the state
+  def calc_state(self):
+    old_state = WalkerBase.calc_state(self)
+    new_state = np.concatenate((old_state, [self.body_xyz[0]])) #Making it 27 dim
+    return new_state
 
   def alive_bonus(self, z, pitch):
     # Use contact other than feet to terminate episode: due to a lot of strange walks using knees
@@ -135,6 +141,34 @@ class HalfCheetah(WalkerBase):
     self.jdict["fthigh"].power_coef = 140.0
     self.jdict["fshin"].power_coef = 60.0
     self.jdict["ffoot"].power_coef = 30.0
+
+
+class HalfCheetahHurdle(WalkerBase):
+    foot_list = ["ffoot", "fshin", "fthigh", "bfoot", "bshin",
+                 "bthigh"]  # track these contacts with ground
+
+    def __init__(self, is_real = True):
+      WalkerBase.__init__(self, "half_cheetah_hurdle.xml", "torso", action_dim=6, obs_dim=27, power=0.90, is_real=True) #Shreyas:obs_dim
+
+    #Shreyas edir: Adding xpos to the state
+    def calc_state(self):
+      old_state = WalkerBase.calc_state(self)
+      new_state = np.concatenate((old_state, [self.body_xyz[0]])) #Making it 27 dim
+      return new_state
+
+    def alive_bonus(self, z, pitch):
+      # Use contact other than feet to terminate episode: due to a lot of strange walks using knees
+      return +1 if np.abs(pitch) < 1.0 and not self.feet_contact[1] and not self.feet_contact[
+          2] and not self.feet_contact[4] and not self.feet_contact[5] else -1
+
+    def robot_specific_reset(self, bullet_client):
+      WalkerBase.robot_specific_reset(self, bullet_client)
+      self.jdict["bthigh"].power_coef = 120.0
+      self.jdict["bshin"].power_coef = 90.0
+      self.jdict["bfoot"].power_coef = 60.0
+      self.jdict["fthigh"].power_coef = 140.0
+      self.jdict["fshin"].power_coef = 60.0
+      self.jdict["ffoot"].power_coef = 30.0
 
 
 # class Ant(WalkerBase):

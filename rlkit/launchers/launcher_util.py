@@ -215,8 +215,8 @@ def setup_logger(
         text_log_file="debug.log",
         variant_log_file="variant.json",
         tabular_log_file="progress.csv",
-        snapshot_mode="last",
-        snapshot_gap=1,
+        snapshot_mode="gap_and_last", #Shreyas edit
+        snapshot_gap=100,
         log_tabular_only=False,
         log_dir=None,
         git_infos=None,

@@ -9,44 +9,44 @@ import math
 cuda = torch.cuda.is_available()
 device = torch.device("cuda" if cuda else "cpu")
 
-'''
-Util functions for classifer
-'''
-def get_data(sim_memory,real_memory):
-    sim_memory=convert_to_SAS_input_form(sim_memory)
-    real_memory=convert_to_SAS_input_form(real_memory)
-    X,Y=mixer(sim_memory, real_memory)
-    len_data=len(Y)
-    trainX=X[:int(len_data*.80)]
-    trainY=Y[:int(len_data*.80)]
-    valX=X[int(len_data*.80): int(len_data*.90)]
-    valY=Y[int(len_data*.80): int(len_data*.90)]
-    testX=X[int(len_data*.90):]
-    testY=Y[int(len_data*.90):]
-    return trainX,trainY,valX,valY,testX,testY
-
-def mixer(X, X1):
-    X2=torch.cat((X,X1), 0)
-    Y=torch.Tensor([[0] for i in range(len(X))])
-    Y1=torch.Tensor([[1] for i in range(len(X1))])
-    Y2=torch.cat((Y,Y1),0)
-    XY=torch.cat((X2,Y2),1)
-    XYshuffled=XY[torch.randperm(XY.shape[0])]
-    return  XYshuffled[:,0:58],XYshuffled[:,-1]
-
-def convert_to_SAS_input_form(batch):
-    obs = batch['observations']
-    actions = batch['actions']
-    next_obs = batch['next_observations']
-    mem = torch.cat((torch.Tensor(obs), torch.Tensor(actions)),1)
-    mem = torch.cat((torch.Tensor(mem), torch.Tensor(next_obs)),1)
-    return mem
-
-def init_model(m):
-    if type(m) == nn.Linear:
-        torch.nn.init.xavier_uniform_(m.weight)
-        m.bias.data.fill_(0.1)
-        return
+# '''
+# Util functions for classifer
+# '''
+# def get_data(sim_memory,real_memory):
+#     sim_memory=convert_to_SAS_input_form(sim_memory)
+#     real_memory=convert_to_SAS_input_form(real_memory)
+#     X,Y=mixer(sim_memory, real_memory)
+#     len_data=len(Y)
+#     trainX=X[:int(len_data*.80)]
+#     trainY=Y[:int(len_data*.80)]
+#     valX=X[int(len_data*.80): int(len_data*.90)]
+#     valY=Y[int(len_data*.80): int(len_data*.90)]
+#     testX=X[int(len_data*.90):]
+#     testY=Y[int(len_data*.90):]
+#     return trainX,trainY,valX,valY,testX,testY
+#
+# def mixer(X, X1):
+#     X2=torch.cat((X,X1), 0)
+#     Y=torch.Tensor([[0] for i in range(len(X))])
+#     Y1=torch.Tensor([[1] for i in range(len(X1))])
+#     Y2=torch.cat((Y,Y1),0)
+#     XY=torch.cat((X2,Y2),1)
+#     XYshuffled=XY[torch.randperm(XY.shape[0])]
+#     return  XYshuffled[:,0:60],XYshuffled[:,-1]
+#
+# def convert_to_SAS_input_form(batch):
+#     obs = batch['observations']
+#     actions = batch['actions']
+#     next_obs = batch['next_observations']
+#     mem = torch.cat((torch.Tensor(obs), torch.Tensor(actions)),1)
+#     mem = torch.cat((torch.Tensor(mem), torch.Tensor(next_obs)),1)
+#     return mem
+#
+# def init_model(m):
+#     if type(m) == nn.Linear:
+#         torch.nn.init.xavier_uniform_(m.weight)
+#         m.bias.data.fill_(0.1)
+#         return
 
 '''
 Network template:
@@ -218,25 +218,25 @@ Classifier class
 #Shreyas TODO: Fix hardcong to applyt to all envs
 class classifier:
     def __init__( self,  init_classifier_batch_size=1024,hardcode=False, real_env=None,  sim_env=None):
-        self.env_state_dim = 26
-        self.env_action_dim = 6
+        self.env_state_dim = real_env.observation_space.shape[0]
+        self.env_action_dim = real_env.action_space.shape[0]
         self.sas_dim = 2*self.env_state_dim + self.env_action_dim
         if hardcode==True:
             self.SAS_hardcode=SAS_hardcode(sim_env, real_env)
         else:
             self.SAS_model = Network(input_size =self.sas_dim, output_size = 2, unit_count = 100)
-            self.SAS_model.apply(init_model)
+            self.SAS_model.apply(self.init_model)
             self.SAS_optimizer= torch.optim.Adam(self.SAS_model.parameters(), lr=10e-3)
             self.SAS_scheduler= ReduceLROnPlateau(self.SAS_optimizer, 'min')
             self._train_loss=[]
             self._train_acc=[]
 
-    def  classifier_init_training(self, sim_replay_buffer,real_replay_buffer, init_classifier_batch_size, num_epochs):
+    def classifier_init_training(self, sim_replay_buffer,real_replay_buffer, init_classifier_batch_size, num_epochs):
         self.batch_size=init_classifier_batch_size
-        trainX,trainY,valX,valY,testX,testY=get_data(sim_replay_buffer,real_replay_buffer)
-        train_dataset =SAS_loader(trainX,trainY)
+        trainX,trainY,valX,valY,testX,testY=self.get_data(sim_replay_buffer,real_replay_buffer)
+        train_dataset =SAS_loader(trainX,trainY, self.sas_dim)
         train_dataloader=DataLoader(train_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)
-        val_dataset =SAS_loader(valX,valY)
+        val_dataset =SAS_loader(valX,valY, self.sas_dim)
         val_dataloader=DataLoader(val_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)
         self.SAS_Network =   Networks( Network=self.SAS_model ,
                                     optimizer=self.SAS_optimizer,
@@ -252,8 +252,8 @@ class classifier:
 
 
     def classifier_train_from_batch(self, sim_batch, real_batch):
-        sim_SAS_in = convert_to_SAS_input_form(sim_batch)
-        real_SAS_in = convert_to_SAS_input_form(real_batch)
+        sim_SAS_in = self.convert_to_SAS_input_form(sim_batch)
+        real_SAS_in = self.convert_to_SAS_input_form(real_batch)
         data=torch.cat((sim_SAS_in, real_SAS_in), 0)
         label=torch.cat((torch.Tensor([0]*len(sim_SAS_in)), torch.Tensor([1]*len(real_SAS_in))), 0)
         loss, acc=self.SAS_Network.train(data, label)
@@ -268,17 +268,57 @@ class classifier:
         self._train_loss, self._train_acc=[],[]
         return res
 
+    '''
+    Util functions for classifer
+    '''
+    def get_data(self, sim_memory,real_memory):
+        sim_memory=self.convert_to_SAS_input_form(sim_memory)
+        real_memory=self.convert_to_SAS_input_form(real_memory)
+        X,Y=self.mixer(sim_memory, real_memory)
+        len_data=len(Y)
+        trainX=X[:int(len_data*.80)]
+        trainY=Y[:int(len_data*.80)]
+        valX=X[int(len_data*.80): int(len_data*.90)]
+        valY=Y[int(len_data*.80): int(len_data*.90)]
+        testX=X[int(len_data*.90):]
+        testY=Y[int(len_data*.90):]
+        return trainX,trainY,valX,valY,testX,testY
+
+    def mixer(self, X, X1):
+        X2=torch.cat((X,X1), 0)
+        Y=torch.Tensor([[0] for i in range(len(X))])
+        Y1=torch.Tensor([[1] for i in range(len(X1))])
+        Y2=torch.cat((Y,Y1),0)
+        XY=torch.cat((X2,Y2),1)
+        XYshuffled=XY[torch.randperm(XY.shape[0])]
+        return  XYshuffled[:,0:self.sas_dim],XYshuffled[:,-1]
+
+    def convert_to_SAS_input_form(self, batch):
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        mem = torch.cat((torch.Tensor(obs), torch.Tensor(actions)),1)
+        mem = torch.cat((torch.Tensor(mem), torch.Tensor(next_obs)),1)
+        return mem
+
+    def init_model(m):
+        if type(m) == nn.Linear:
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.1)
+            return
+
 '''
 Data loader
 '''
 class SAS_loader(Dataset):
-    def __init__(self, X, Y):
+    def __init__(self, X, Y, input_size):
 
         self.X=torch.Tensor(X)
         self.Y=torch.Tensor(Y)
+        self.input_size = input_size
 
     def __getitem__(self, index):
-        return self.X[index][0:58], self.Y[index]
+        return self.X[index][0:self.input_size], self.Y[index]
 
     def __len__(self):
         return len(self.Y)
