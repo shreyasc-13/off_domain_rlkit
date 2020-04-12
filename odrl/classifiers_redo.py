@@ -56,8 +56,8 @@ class classifier:
             self.hardcode=hardcode(sim_env, real_env, SA, self.obs_dim, self.action_dim)
         else:
             self.input_size=self.obs_dim+self.action_dim if self.SA else 2*self.obs_dim+self.action_dim
-            self.model =Network(input_size=self.input_size, output_size=2, unit_count=32)
-            # self.model = FlattenMlp(input_size = self.input_size, output_size = 2, hidden_sizes= [64, 64,  64], hidden_activation=nn.tanh,  output_activation=nn.Softmax(dim=1), layer_norm=True,)
+            # self.model =Network(input_size=self.input_size, output_size=2, unit_count=32)
+            self.model = FlattenMlp(input_size = self.input_size, output_size = 2, hidden_sizes= [64, 64, 64, 64], hidden_activation=nn.Tanh(),  output_activation=nn.Softmax(dim=1), layer_norm=True,)
             self.optimizer= torch.optim.Adam(self.model.parameters(), lr=10e-3)
             self.scheduler= ReduceLROnPlateau(self.optimizer, 'min')
             self._train_loss=[]
@@ -68,9 +68,9 @@ class classifier:
     def  classifier_init_training(self, sim_replay_buffer, real_replay_buffer, init_classifier_batch_size, num_epochs):
         self.batch_size=init_classifier_batch_size
         trainX,trainY,valX,valY,testX,testY=self.get_data(sim_replay_buffer,real_replay_buffer)
-        train_dataset =loader(trainX,trainY)
+        train_dataset =loader(trainX,trainY, self.obs_dim,self.action_dim, self.SA)
         self.train_loader=DataLoader(train_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)
-        val_dataset =loader(valX,valY)
+        val_dataset =loader(valX,valY, self.obs_dim,self.action_dim, self.SA)
         self.val_loader=DataLoader(val_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)     
         self.best_val_loss=10e14; self.patience=10; self.wait=0; self.min_delta=10e-4
         self.init_train(num_epochs)
@@ -97,6 +97,7 @@ class classifier:
         self.optimizer.zero_grad()
         inp = Variable(data.to(device))
         Y = Variable(label.long().to(device))
+        # import pdb;pdb.set_trace()
         out = self.model(inp.float())
         loss = self.criterion(out, Y) 
         loss.backward()
@@ -148,10 +149,10 @@ class classifier:
         if self.wait>self.patience:
             return True
 
-    def get_diagnostics(self):
+    def get_diagnostics(self, ensamble_num=0):
         loss=torch.mean(torch.Tensor(self._train_loss))
         acc=torch.mean(torch.Tensor(self._train_acc))
-        res=OrderedDict([( self.name+' classifier train loss',loss.data[0] ), (self.name+' classifier train acc', acc.data[0] )])
+        res=OrderedDict([( self.name+' classifier train loss, ensamble_num '+str(ensamble_num),loss.data.item() ), (self.name+' classifier train acc, ensamble_num '+str(ensamble_num), acc.data.item())])
         self._train_loss, self._train_acc=[],[]
         return res
 
@@ -230,12 +231,15 @@ class hardcode():
 
 
 class loader(Dataset):   
-    def __init__(self, X, Y):
+    def __init__(self, X, Y,  obs_dim,action_dim, SA):
         self.X=torch.Tensor(X)
         self.Y=torch.Tensor(Y)
+        self.obs_dim, self.action_dim, self.SA=  obs_dim, action_dim, SA
 
     def __getitem__(self, index):
-        return self.X[index][0:6], self.Y[index]
+        if self.SA:
+            return self.X[index][0:self.obs_dim+self.action_dim], self.Y[index]
+        return self.X[index][0:2*self.obs_dim+self.action_dim], self.Y[index]
         
     def __len__(self):
         return len(self.Y)
@@ -270,6 +274,11 @@ class classifier_ensambler():
         for i in range(self.num_SA):
             self.SA_classifiers[i].train(data, label)
 
+    def classifier_train_from_batch(self, sim_batch, real_batch):
+        for i in range(self.num_SAS):
+            self.SAS_classifiers[i].classifier_train_from_batch( sim_batch, real_batch)
+        for i in range(self.num_SA):
+            self.SA_classifiers[i].classifier_train_from_batch( sim_batch, real_batch)
     def  predict(self, data, result_type="mean"):
         out, out_SA=[], []
         for i in range(self.num_SAS):
@@ -284,7 +293,8 @@ class classifier_ensambler():
             return max(out), max(out_SA)
         else:
             return sum(out)/len(out), sum(out_SA)/len(out_SA)
-        return 
+         
+
     def hardcode_predict(self,sim_env, real_env , is_sa=False, obs_dim=2 ,action_dim=2, result_type="mean"):
         out, out_SA=[],[]
         for i in range(self.num_SAS):
@@ -299,5 +309,13 @@ class classifier_ensambler():
             return max(out), max(out_SA)
         else:
             return sum(out)/len(out), sum(out_SA)/len(out_SA)
-        return 
+
+
+    def get_diagnostics(self):
+        diag_dic=OrderedDict([])
+        for i in range(self.num_SAS):
+            diag_dic.update(self.SAS_classifiers[i].get_diagnostics(ensamble_num=i))
+        for i in range(self.num_SA):
+            diag_dic.update(self.SA_classifiers[i].get_diagnostics(ensamble_num=i) )
+        return diag_dic        
 
