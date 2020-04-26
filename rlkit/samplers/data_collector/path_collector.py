@@ -35,6 +35,7 @@ class MdpPathCollector(PathCollector):
             discard_incomplete_paths,
             collect_random_path=False,
             constant_start_state=True, 
+            render=False
 
     ):
         paths = []
@@ -44,13 +45,23 @@ class MdpPathCollector(PathCollector):
                 max_path_length,
                 num_steps - num_steps_collected,
             )
-            path = rollout(
-                self._env,
-                self._policy,
-                max_path_length=max_path_length_this_loop, #min(self.max_env_steps,num_steps - num_steps_collected), 
-                collect_random_path=collect_random_path, 
-                constant_start_state=constant_start_state
-            )
+            if num_steps_collected<1000 and render==True:
+                path = rollout(
+                                self._env,
+                                self._policy,
+                                max_path_length=max_path_length_this_loop, #min(self.max_env_steps,num_steps - num_steps_collected), 
+                                collect_random_path=collect_random_path, 
+                                constant_start_state=constant_start_state, 
+                                render=True
+                            )
+            else:
+                path = rollout(
+                    self._env,
+                    self._policy,
+                    max_path_length=max_path_length_this_loop, #min(self.max_env_steps,num_steps - num_steps_collected), 
+                    collect_random_path=collect_random_path, 
+                    constant_start_state=constant_start_state
+                )
             path_len = len(path['actions'])
             if (
                     path_len != max_path_length

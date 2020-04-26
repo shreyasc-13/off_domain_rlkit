@@ -104,7 +104,10 @@ def rollout(
     terminals = []
     agent_infos = []
     env_infos = []
-    o = env.reset(constant_start_state)
+    # if env_name =="Pointenv": #TODO
+    #     o = env.reset(constant_start_state)
+    # else:
+    o = env.reset()
     agent.reset()
     next_o = None
     path_length = 0

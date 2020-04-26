@@ -10,26 +10,33 @@ cuda = torch.cuda.is_available()
 device = torch.device("cuda" if cuda else "cpu")
 import numpy as np
 from torch.nn import functional as F
+import matplotlib.pyplot as plt
+import scipy
 
+import sklearn
+from sklearn.calibration import calibration_curve
 
 class Network(nn.Module):
     def __init__(self, input_size, output_size, unit_count):
         super().__init__()
         self.layer1 = nn.Sequential(
                           nn.Linear(input_size, unit_count),
-                          nn.Tanh())
+                          nn.Dropout(p=0.5), 
+                          nn.ReLU())
         self.layer2 = nn.Sequential(
                         nn.Linear(unit_count, unit_count),
-                        nn.Tanh())
-        self.layer3 = nn.Sequential(
-                        nn.Linear(unit_count, unit_count),
-                        nn.Tanh())
+                        nn.Dropout(p=0.5), 
+                        nn.ReLU())
+        # self.layer3 = nn.Sequential(
+        #                 nn.Linear(unit_count, unit_count),
+        #                 nn.Tanh())
         # self.layer4 = nn.Sequential(
         #                 nn.Linear(unit_count, unit_count),
         #                 nn.Tanh())
         self.layer4 = nn.Sequential(
                           nn.Linear(unit_count, output_size),
-                          nn.Softmax(dim=1))
+                          # nn.Softmax(dim=1)
+                          )
 
         return
 
@@ -57,7 +64,7 @@ class classifier:
         else:
             self.input_size=self.obs_dim+self.action_dim if self.SA else 2*self.obs_dim+self.action_dim
             # self.model =Network(input_size=self.input_size, output_size=2, unit_count=32)
-            self.model = FlattenMlp(input_size = self.input_size, output_size = 2, hidden_sizes= [64, 64, 64, 64], hidden_activation=nn.Tanh(),  output_activation=nn.Softmax(dim=1), layer_norm=True,)
+            self.model = FlattenMlp(input_size = self.input_size, output_size = 2, hidden_sizes= [256, 256], hidden_activation=nn.ReLU())#,  layer_norm=True,) #output_activation= nn.Softmax(dim=1),
             self.optimizer= torch.optim.Adam(self.model.parameters(), lr=10e-3)
             self.scheduler= ReduceLROnPlateau(self.optimizer, 'min')
             self._train_loss=[]
@@ -72,7 +79,7 @@ class classifier:
         self.train_loader=DataLoader(train_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)
         val_dataset =loader(valX,valY, self.obs_dim,self.action_dim, self.SA)
         self.val_loader=DataLoader(val_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)     
-        self.best_val_loss=10e14; self.patience=10; self.wait=0; self.min_delta=10e-4
+        self.best_val_loss=10e14; self.patience=2; self.wait=0; self.min_delta=1e-3
         self.init_train(num_epochs)
 
 
@@ -97,12 +104,12 @@ class classifier:
         self.optimizer.zero_grad()
         inp = Variable(data.to(device))
         Y = Variable(label.long().to(device))
-        # import pdb;pdb.set_trace()
         out = self.model(inp.float())
         loss = self.criterion(out, Y) 
         loss.backward()
         self.optimizer.step()
-        predictions=out[:,1]>0.5; acc = ((predictions.long() == Y).float().sum())/len(label)
+        out_post_processing= nn.Softmax(dim=1)
+        predictions=out_post_processing(out)[:, 1]>0.5; acc = ((predictions.long() == Y).float().sum())/len(label)
         return loss.data, acc
 
  
@@ -112,12 +119,14 @@ class classifier:
         data=torch.cat((sim_in, real_in), 0)
         label=torch.cat((torch.Tensor([0]*len(sim_in)), torch.Tensor([1]*len(real_in))), 0)
         loss, acc=self.train(data, label)
+        print(loss, acc)
         self._train_loss.append(loss), self._train_acc.append(acc)
 
 
 
     def validate(self,epoch):
         val_acc=0; val_loss=0
+        batch_idx=-1
         for batch_idx, (data, label) in enumerate(self.val_loader):
             self.optimizer.zero_grad()
             inp = Variable(data.to(device))
@@ -126,8 +135,17 @@ class classifier:
             predictions=out[:,1]>0.5 
             val_loss+=self.criterion(out, Y).data; 
             val_acc += (predictions.long() == label.long().to(device)).float().sum()
+        if batch_idx==-1:
+            print("too small dataset to be compatible with 9:1 train-val split with mini batch size: ", \
+             "you may sample more data/ modify the split size in get_data function/ or make the minibatch size smaller for classifier")
         total=(batch_idx+1)*len(label)
-        val_acc=val_acc/total ; val_loss=val_loss/total
+        val_acc=val_acc/total ; val_loss=val_loss/(batch_idx+1)
+        # out_post_processing= nn.Softmax(dim=1)
+        # pred_pos=out_post_processing(out)[:, 1]
+        # frac_pos, mean_pred = calibration_curve(label, pred_pos, n_bins=10)
+        # import pdb;pdb.set_trace()
+        # plt.plot(mean_pred, frac_pos)
+        # plt.show()
         self.scheduler.step(val_loss) 
         self.metrics["loss"].append(val_loss); self.metrics["acc"].append(val_acc)
         print("Epoch {},  Val Loss: {}, Val Accuracy: {}".format(epoch+1, val_loss, val_acc))
@@ -150,9 +168,11 @@ class classifier:
             return True
 
     def get_diagnostics(self, ensamble_num=0):
+        print(self._train_loss, self._train_acc)
         loss=torch.mean(torch.Tensor(self._train_loss))
         acc=torch.mean(torch.Tensor(self._train_acc))
-        res=OrderedDict([( self.name+' classifier train loss, ensamble_num '+str(ensamble_num),loss.data.item() ), (self.name+' classifier train acc, ensamble_num '+str(ensamble_num), acc.data.item())])
+        print( self.name+' classifier train loss, ensamble_num '+str(ensamble_num),loss.data.item() , self.name+' classifier train acc, ensamble_num '+str(ensamble_num), acc.data.item() )
+        res=OrderedDict([( self.name+'_classifier_train_loss_ensamble_num_'+str(ensamble_num),loss.data.item() ), (self.name+'_classifier_train_acc_ensamble_num_'+str(ensamble_num), acc.data.item())])
         self._train_loss, self._train_acc=[],[]
         return res
 
@@ -166,8 +186,18 @@ class classifier:
         return  XYshuffled[:,0:self.input_size],XYshuffled[:,-1]  
 
     def get_data(self, sim_memory,real_memory):
+        # import pdb;pdb.set_trace()
         sim_memory=self.convert_to_input_form(sim_memory)
         real_memory=self.convert_to_input_form(real_memory)
+        # plt.figure(figsize=(20, 20))
+        # for i in range(len(sim_memory[0])):
+        #     plt.subplot(5, 4, i+1)
+        #     plt.hist(sim_memory[:,i],range=[-5, 5], bins=50,  color='b', alpha=0.5)
+        #     plt.hist(real_memory[:,i],range=[-5, 5], bins=50,  color='r', alpha=0.5)
+        # plt.show()
+        # import pdb;pdb.set_trace()
+        # for i in range(len(sim_memory[1])):
+        #     plt.subplot(5, 4, i)
         X,Y=self.mixer(sim_memory, real_memory)
         len_data=len(Y)
         trainX=X[:int(len_data*.90)]

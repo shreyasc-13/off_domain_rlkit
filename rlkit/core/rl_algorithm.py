@@ -141,7 +141,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                         prefix='sim_exploration/',
                     )
                 logger.record_dict(
-                    eval_util.get_generic_path_information(sim_expl_paths),
+                    eval_util.get_generic_path_information(sim_expl_paths, self.rl_on_real, classifier=self.classifier.predict if not self.rl_on_real else None ),
                     prefix="sim_exploration/",
                 )
 
@@ -158,7 +158,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                     prefix='real_exploration/',
                 )
             logger.record_dict(
-                eval_util.get_generic_path_information(real_expl_paths),
+                eval_util.get_generic_path_information(real_expl_paths, self.rl_on_real, classifier=self.classifier.predict if not self.rl_on_real else None),
                 prefix="real_exploration/",
             )
 
@@ -178,7 +178,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 prefix='eval_real/',
             )
         logger.record_dict(
-            eval_util.get_generic_path_information(eval_paths),
+            eval_util.get_generic_path_information(eval_paths, self.rl_on_real,classifier=self.classifier.predict if not self.rl_on_real else None),
             prefix="eval_real/",
         )
 
@@ -194,7 +194,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 prefix='eval_sim/',
             )
         logger.record_dict(
-            eval_util.get_generic_path_information(eval_paths),
+            eval_util.get_generic_path_information(eval_paths, self.rl_on_real, classifier=self.classifier.predict if not self.rl_on_real else None),
             prefix="eval_sim/",
         )
 
@@ -204,7 +204,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                     prefix="evaluation/")
         logger.record_dict( OrderedDict([('eval_real_acc', self.eval_real_acc)]), 
             prefix="evaluation/")
-
+        logger.record_dict( OrderedDict([('num_trains_per_train_loop', self.num_train_loops_per_epoch)]), 
+            prefix="")
 
         """
         Misc

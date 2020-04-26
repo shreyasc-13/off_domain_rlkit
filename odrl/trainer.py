@@ -41,7 +41,10 @@ class SACTrainer(TorchTrainer):
             target_entropy=None, 
             classifier=None,
             seed=1,
-            SA=False
+            SA=False, 
+            max_classifier_reward=100, 
+            # train_on_sim_with_modified_rewards= True, 
+            # lamda=1
 
     ):
         torch.manual_seed(seed)
@@ -94,28 +97,40 @@ class SACTrainer(TorchTrainer):
         self._need_to_update_eval_statistics = True
         self.logs={"policy_training_loss":[], "policy_val_loss":[], }
         self.SA=SA
+        self.max_classifier_reward= max_classifier_reward
+        # self.train_on_sim_with_modified_rewards=train_on_sim_with_modified_rewards
+        # self.lamda=lamda
 
 
-
-
-    def train_from_torch(self, batch,  modify_reward=False,  classifier=None, plot_classifier=False,subplot_num=None ):
+    def train_from_torch(self, batch,  modify_reward=False,  classifier=None, plot_classifier=False,subplot_num=None, lamda=0):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        # modify_reward=False
+
+        # modify_reward= modify_reward and self.train_on_sim_with_modified_rewards 
         #To test how would it work without modifying rewards in sim, but training only in sim  # modify_reward=False; plot_classifier=False 
         # Our method:
         if modify_reward:
             classifier_input=  torch.cat((obs, actions), 1)
             classifier_input=  torch.cat((classifier_input, next_obs), 1)
             outSAS, outSA=classifier(classifier_input)
-            deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
-            if self.SA:
-                deltaR-=(torch.log(outSA[:, 1]) - torch.log(outSA[:, 0])).reshape((-1,1))
-            rewards=rewards+deltaR
             # import pdb;pdb.set_trace()
+            
+            deltaR= torch.clamp( (outSAS[:, 1] - outSAS[:, 0]).reshape((-1,1)), min=-1*self.max_classifier_reward, max=self.max_classifier_reward)
+            if self.SA:
+                deltaR-=torch.clamp( (outSA[:, 1] - outSA[:, 0]).reshape((-1,1)),  min=-1*self.max_classifier_reward, max=self.max_classifier_reward)
+            # print(deltaR)
+            # deltaR= torch.clamp( (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1)), min=-1*self.max_classifier_reward, max=self.max_classifier_reward)
+            # if self.SA:
+            #     deltaR-=torch.clamp( (torch.log(outSA[:, 1]) - torch.log(outSA[:, 0])).reshape((-1,1)),  min=-1*self.max_classifier_reward, max=self.max_classifier_reward)
+            # import pdb;pdb.set_trace()
+            reward_stats=(torch.mean(deltaR), torch.min(deltaR), torch.max(deltaR), torch.std(deltaR))
+            # print(lamda) 
+            # print( lamda*deltaR)
+            rewards=rewards+ lamda*deltaR
+            
             if plot_classifier and subplot_num:
 
                 plt.subplot(subplot_num[0],subplot_num[1], subplot_num[2] )
@@ -241,6 +256,7 @@ class SACTrainer(TorchTrainer):
                 self.eval_statistics['Alpha'] = alpha.item()
                 self.eval_statistics['Alpha Loss'] = alpha_loss.item()
         self._n_train_steps_total += 1
+        return reward_stats
 
     def get_diagnostics(self):
         return self.eval_statistics
@@ -267,3 +283,4 @@ class SACTrainer(TorchTrainer):
             target_qf2=self.qf2,
         )
 
+ 

@@ -39,7 +39,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_sim_steps_per_epoch=0,
             num_rl_train_steps_per_iter=1,
             rl_on_real=True,
-            modify_reward=False,
+            # modify_reward=False,
             num_classifier_train_steps_per_iter=1,
             num_train_loops_per_epoch=1,
             num_classifier_init_epoch=50,
@@ -53,7 +53,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             should_plot=False, 
             seed=1,
             num_SA=0,
-            num_SAS=1
+            num_SAS=1, 
+            iid_at_init=False, 
+            render=False, 
+            lamda=1,
+            fixed_lamda=1
     ):
 
 
@@ -111,14 +115,19 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.subplot_num=0
         self.num_SA=num_SA
         self.num_SAS=num_SAS
+        self.iid_at_init=iid_at_init
+        self.render=render
+        self.fixed_lamda=fixed_lamda
+        self.lamda=lamda
 
     def _train(self):
 
         # INIT REPLAY BUFFER
 
         self.SAC_burn_in_memory(use_policy=False)
- 
+        # import pdb;pdb.set_trace()
         #If our method: train the classifier on INIT replay buffer.
+
         if not self.rl_on_real:
             self.classifier=classifier_ensambler(num_SA=self.num_SA, num_SAS=self.num_SAS, seed=self.seed, hardcode=self.hardcode_classifier,  real_env=self.real_exploration_env, sim_env=self.sim_exploration_env)
             if not self.hardcode_classifier and self.num_sim_steps_at_init and self.num_real_steps_at_init:
@@ -127,7 +136,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.classifier.classifier_init_training( sim_init_memory,real_init_memory, 
                                                         init_classifier_batch_size=self.classifier_batch_size, 
                                                         num_epochs=self.num_classifier_init_epoch)
-        
+        else:
+            self.classifier=None
 
         # for num_epochs(default 3000), evaluate 
         if self.should_plot:
@@ -151,6 +161,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         train_data =self.real_replay_buffer.random_batch(self.batch_size)
                         self.trainer.train(train_data)
 
+
                     else:
                         train_data = self.sim_replay_buffer.random_batch(self.batch_size)
                         # import pdb;pdb.set_trace()
@@ -159,7 +170,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                                             modify_reward=True, 
                                             classifier=self.classifier.predict,
                                             plot_classifier=True if (not (epoch-1)%self.plot_episodes_period and not train_num) else False, 
-                                            subplot_num= (self.num_rows, self.num_cols, self.plot_num+ 4*self.num_cols) if (epoch and self.should_plot and not train_num) else None
+                                            subplot_num= (self.num_rows, self.num_cols, self.plot_num+ 4*self.num_cols) if (epoch and self.should_plot and not train_num) else None, 
+                                            lamda=epoch*0.005 if not self.fixed_lamda else self.lamda
+                                            #TODO: if aneealing lamda, logs will become wrong in 
                                             )
                         else:
                             self.trainer.train(train_data,
@@ -201,9 +214,10 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
     def SAC_burn_in_memory(self, use_policy):
         # Filling real replay buffer at the start with the real world steps
+        max_steps=1 if self.iid_at_init==True else self.max_path_length
         if self.num_real_steps_at_init:
             init_real_expl_paths = self.real_data_collector.collect_new_paths(
-                1,
+                max_steps,
                 self.num_real_steps_at_init,
                 discard_incomplete_paths=False,
                 collect_random_path=self.init_paths_random, 
@@ -221,7 +235,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         # Filling sim replay buffer at the start with the sim world steps
         if not self.rl_on_real and self.num_sim_steps_at_init:
             init_sim_expl_paths = self.sim_data_collector.collect_new_paths(
-                1,
+                max_steps,
                 self.num_sim_steps_at_init,
                 discard_incomplete_paths=False,
                 collect_random_path=self.init_paths_random, 
@@ -240,7 +254,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.max_path_length,
                 self.num_eval_steps_per_epoch,
                 discard_incomplete_paths=False,
-
+                render=self.render
             )
         acc=0
         for path in self.eval_real_new_paths:
@@ -251,12 +265,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         gt.stamp('real evaluation sampling')
 
 
-
         self.eval_sim_new_paths=self.eval_sim_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_eval_steps_per_epoch/5, # just devided by 5 to save some computation as eval on sim world is less imp than eval on real world
-                discard_incomplete_paths=False,
-            )
+                    self.max_path_length,
+                    self.max_path_length*2, # just devided by 5 to save some computation as eval on sim world is less imp than eval on real world
+                    discard_incomplete_paths=False,
+                )
         acc=0
         for path in self.eval_sim_new_paths:
             if np.linalg.norm(path["next_observations"][-1])<self.tolerance:

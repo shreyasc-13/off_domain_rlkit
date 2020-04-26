@@ -71,9 +71,11 @@ import os
 # 	lines.append(line)
 # plt.legend(handles=lines, loc='lower right')
 # plt.show()
+# ["init_episodes1-mean0.2-nameLunar_lander-nctspi1-num_trains_per_train_loop", "-resize_factor1-rl_on_real0-seed0-std0.3"]
 
 
-plot_folder="/home/swapnil/DRL/offDyna/rlkit-master/rlkit/data/name-of-experiment/"#batch3/"
+
+plot_folder="/home/swapnil/DRL/offDyna/rlkit-master/rlkit/data/new_expts/"#name-of-experiment#batch3/"
 
 dirs=os.listdir(plot_folder)
 dirs= [os.path.join(plot_folder, dir_) for dir_ in dirs]
@@ -82,49 +84,87 @@ dirs= [os.path.join(plot_folder, dir_) for dir_ in dirs]
 # if  "classifier_online-" in dir_:
 # 	os.rename(dir_,dir_[-9]+"ff"+dir_[-8:])
 
- 
-substrs=["-batch_rl_on_real_iid", "-barch_rl_iid",  "-classifier_offline_iid"]#, "-classifier_online2", "-sim_online"]#, "-batch_rl_big"]# , "-classifier_online", "-classifier_offline", "-hardcode"]
-color=[ "m", "m",  "b"]#, "c", "b"]#, "pink"]#"r",, "c", "b"]
+# import pdb; pdb.set_trace()
+# substrs=[  "-classifier_offline_iid", "-ensamble_3_SAS_0_SA_mean_classifier_offline_iid",  "-ensamble_3_SAS_3_SA_mean_classifier_offline_iid",]#,"-batch_rl_on_real_iid", "-barch_rl_iid", #, "-classifier_online2", "-sim_online"]#, "-batch_rl_big"]# , "-classifier_online", "-classifier_offline", "-hardcode"]
+# substrs=["-Lunar_lander_classifier_online_max_epi_steps_1000"]#["-Lunar_lander_rl_on_real", "-Lunar_lander_rl_on_real_hyperparamters_changed", "-Lunar_lander_rl_on_real_max_epi_steps_3000"]
+# substrs=[("init_episodes1-mean0.2-nameLunar_lander-nctspi1-num_trains_per_train_loop", "-resize_factor1-rl_on_real0-seed0-std0.3"), 
+# 		("init_episodes1-mean0.2-nameLunar_lander-nctspi1-num_trains_per_train_loop", "-resize_factor1-rl_on_real1-seed0-std0.3"), 
+# 		("init_episodes1-mean0.2-nameLunar_lander_rl_on_sim_with_unmodified_R-nctspi1-num_trains_per_train_loop", "-resize_factor1-rl_on_real1-seed0-std0.3")]
+substrs=[("init_episodes1-mean0.6-nameLunar_lander_delta_scaled-nctspi10-num_trains_per_train_loop2000-resize_factor1-rl_on_real0-seed0-std", "-unmodified_reward")]
+# /home/swapnil/DRL/offDyna/rlkit-master/rlkit/data/name-of-experiment/name-of-experiment_2020_04_12_17_44_15_0000--s-init_episodes12000-resize_factor1-rl_on_real1-seed0-std0.3
+# names=["rl_on_sim_with_modified_rewards"," rl_on_real", "rl_on_sim_with_unmodified_rewards"]#, "SAC_hyperparameters_changed, max_episode_length_1000", "max_episode_length_3000"]
 
-resize=["9"]#"5", "7", 
-init=["-5","-10","-12", "-15", "-20",  "-50", "-100", "-200", "-500"]
+color= ["blue", "black", "red"]
+# color= [ "b", "black", "red"]#,[ "m", "m",  "b"]#, "c", "b"]#, "pink"]#"r",, "c", "b"]
+
+# resize=["1"]#"5", 
+# init=["-10"]#"-1","-2", "-5","-7", ]#[  "-10", "-100", "-1000"]#"-5","-10","-12", "-15", "-20", , "-500"
 # init=["-10","-12", "-15", "-20","-30",  "-50", "-100", "-200"]
 
+# subepoch=["2000", "4000", "16000", "64000"]
+std=["0.3", "1.0"]
+modified=["0", "1"]
+names=["modified rewards", "unmodified rewards"]
+num_cols=len(std)
+# num_cols=len(subepoch)
+# num_cols=len(init)
+# num_cols=len(subepoch)
 fig=plt.figure(figsize=(30,4))
-for k in range(len(init)):
-	for j in range(len(resize)):
+# for k in range(len(subepoch)):
+for k in range(len(std)):
+	# for k in range(len(init)):
+	for j in range(len(modified)):
 		for i in range(len(substrs)):
 			for folder in dirs:
-				# print(folder)
-				if  folder.endswith(resize[j]+substrs[i]+ init[k]) and os.path.isfile(os.path.join(folder,"progress.csv")):
-					print(folder,resize[j]+substrs[i], init[k] )
+				# print(resize[j]+substrs[i]+ init[k],folder)
+				if  folder.endswith(substrs[i][0]+std[k]+substrs[i][1]+modified[j]) and os.path.isfile(os.path.join(folder,"progress.csv")):
+					# if  folder.endswith(resize[j]+substrs[i]+ init[k]) and os.path.isfile(os.path.join(folder,"progress.csv")):
+
+					# print(folder,resize[j]+substrs[i], init[k] )
 					data=pd.read_csv(os.path.join(folder,"progress.csv"))
+					# import pdb;pdb.set_trace()
 					num_real=data["real_exploration/num steps total"].tolist()
 					returns=data['eval_real/Returns Mean'].tolist()
 					pathbreak=folder.split("-")
-					ax = fig.add_subplot(2,9, k+10)
+					ax = fig.add_subplot(2,num_cols, k+num_cols+1)
 					ax.tick_params(axis='both', which='major', labelsize=5)
 
 					# plt.subplot(2,8, k+9)
-					plt.xlabel("num epochs", fontsize="x-small");
+					plt.xlabel("num of epoch", fontsize="x-small");
 					plt.ylabel("returns",  fontsize="x-small")
-					plt.plot(returns, alpha=0.4, color=color[i])#, label=substrs[i] if substrs[i]=="-batch_rl" else "classifier_offline")
+					plt.title("sim std:"+ str(std[k]))
+					# plt.title("num of subepoch"+ subepoch[k] )
+					# plt.title("num of real steps per epoch: " +str(init[k][1:])+" * max episode len",  fontsize="small")
+					plt.plot(returns, alpha=0.4, color=color[i], label=names[i])# if substrs[i]=="-batch_rl" else "classifier_offline")
 					
-					ax = fig.add_subplot(2,9, k+1)
+					ax = fig.add_subplot(2,num_cols, k+1)
 					ax.tick_params(axis='both', which='major', labelsize=5)
 
-					plt.xlabel("num steps total",  fontsize="x-small");
+					plt.xlabel("num of real steps",  fontsize="x-small");
 					plt.ylabel("returns",  fontsize="x-small")
-					plt.title("num of real init steps: " +str(float(init[k][1:])*.450)+"k",  fontsize="small")
+					# plt.title("num of real steps per epoch: " +str(init[k][1:])+" * max episode len",  fontsize="small")
 
-					plt.plot(num_real, returns,alpha=0.4, color=color[i])#,label=substrs[i] if substrs[i]=="-batch_rl" else "classifier_offline" )
+					plt.plot(num_real, returns,alpha=0.4, color=color[i],label=names[i])# if substrs[i]=="-batch_rl" else "classifier_offline" )
 					plt.tight_layout()
+handles, labels = ax.get_legend_handles_labels()
+# import pdb;pdb.set_trace()
 
+set_labels=[]
+set_handes=[]
+for i in range(len(labels)):
+	if labels[i] not in set_labels:
+		set_labels.append(labels[i])
+		set_handes.append(handles[i])
+
+# fig.legend(handles, labels, loc='bottom right', fontsize="small")
+# 
+fig.legend(set_handes, set_labels, loc='best')
+fig.suptitle("Lunar Lander, sim mean is 0.6 away from real, real var fixed at 0.3")
 	# handles, labels = pyplot.gca().get_legend_handles_labels()
 	# newLabels, newHandles = [], []
 	# for handle, label in zip(handles, labels):
 	#   if label not in newLabels:
-	#     newLabels.append(label)
+	#     newLabels.appe	nd(label)
  #    	newHandles.append(handle)
 	# pyplot.legend(newHandles, newLabels)
 	# plt.legend( loc="lower right", fontsize="x-small")

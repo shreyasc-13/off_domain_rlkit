@@ -8,9 +8,9 @@ from numbers import Number
 import numpy as np
 
 import rlkit.pythonplusplus as ppp
+import torch
 
-
-def get_generic_path_information(paths, stat_prefix=''):
+def get_generic_path_information(paths, rl_on_real=True, classifier=None, stat_prefix=''):
     """
     Get an OrderedDict with a bunch of statistic names and values.
     """
@@ -18,7 +18,7 @@ def get_generic_path_information(paths, stat_prefix=''):
     # pdb.set_trace()
     statistics = OrderedDict()
     returns = [sum(path["rewards"]) for path in paths]
-
+    # deltaR= [sum(path["rewards"]) for path in paths]
     rewards = np.vstack([path["rewards"] for path in paths])
     statistics.update(create_stats_ordered_dict('Rewards', rewards,
                                                 stat_prefix=stat_prefix))
@@ -60,6 +60,23 @@ def get_generic_path_information(paths, stat_prefix=''):
                     all_ks,
                     stat_prefix='{}/'.format(info_key),
                 ))
+        # import pdb; pdb.set_trace()
+        #DeltaR
+        if paths and not rl_on_real:
+            first_path_obs = torch.Tensor(paths[0]['observations'])
+            first_path_actions = torch.Tensor(paths[0]['actions'])
+            first_path_next_obs = torch.Tensor(paths[0]['next_observations'])
+
+            classifier_input=  torch.cat((first_path_obs, first_path_actions), 1)
+            classifier_input=  torch.cat((classifier_input, first_path_next_obs), 1)
+            outSAS, outSA=classifier(classifier_input)
+            # import pdb;pdb.set_trace()
+            
+            deltaR= (outSAS[:, 1] - outSAS[:, 0]).reshape((-1,1))
+            print(stat_prefix)
+            print(deltaR)
+            statistics.update(create_stats_ordered_dict('deltaR_1_rollout', deltaR.cpu().numpy(),
+                                                stat_prefix=stat_prefix))
 
     return statistics
 
