@@ -57,7 +57,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             iid_at_init=False, 
             render=False, 
             lamda=1,
-            fixed_lamda=1
+            fixed_lamda=1, 
+            max_real_collection_epoch= 1000
     ):
 
 
@@ -119,6 +120,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.render=render
         self.fixed_lamda=fixed_lamda
         self.lamda=lamda
+        self.max_real_collection_epoch= max_real_collection_epoch
 
     def _train(self):
 
@@ -143,7 +145,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         if self.should_plot:
             self.plot_path_before_training() #plot all epoch results
 
-        for epoch in gt.timed_for(range(self._start_epoch, self.num_epochs),save_itrs=True,):
+        for self.epoch in gt.timed_for(range(self._start_epoch, self.num_epochs),save_itrs=True,):
             self.training_SAC=True
 
             # collect real env evaluate steps. It will just stores the stats which will be used in logging with end_epoch. 
@@ -169,9 +171,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                             self.trainer.train(train_data,
                                             modify_reward=True, 
                                             classifier=self.classifier.predict,
-                                            plot_classifier=True if (not (epoch-1)%self.plot_episodes_period and not train_num) else False, 
-                                            subplot_num= (self.num_rows, self.num_cols, self.plot_num+ 4*self.num_cols) if (epoch and self.should_plot and not train_num) else None, 
-                                            lamda=epoch*0.005 if not self.fixed_lamda else self.lamda
+                                            plot_classifier=True if (not (self.epoch-1)%self.plot_episodes_period and not train_num) else False, 
+                                            subplot_num= (self.num_rows, self.num_cols, self.plot_num+ 4*self.num_cols) if (self.epoch and self.should_plot and not train_num) else None, 
+                                            lamda=self.epoch*0.005 if not self.fixed_lamda else self.lamda
                                             #TODO: if aneealing lamda, logs will become wrong in 
                                             )
                         else:
@@ -201,11 +203,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 # rewards=rewards+deltaR
                     
 
-            self.evaluate(epoch)
+            self.evaluate()
 
-            self._end_epoch(epoch) # logs all statistics
-            if self.should_plot and not epoch%self.plot_episodes_period:
-                self.plot_path_steps(epoch)
+            self._end_epoch(self.epoch) # logs all statistics
+            if self.should_plot and not self.epoch%self.plot_episodes_period:
+                self.plot_path_steps()
         # self.eval_new_paths=self.evaluate(epoch)
         # self._end_epoch(epoch)
         if self.should_plot:
@@ -249,7 +251,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
 
 
-    def evaluate(self, epoch):
+    def evaluate(self):
         self.eval_real_new_paths=self.eval_real_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_eval_steps_per_epoch,
@@ -293,7 +295,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.sim_replay_buffer.add_paths(new_sim_paths)
             gt.stamp('data storing', unique=False)
 
-        if self.num_real_steps_per_epoch:
+        if ((self.num_real_steps_per_epoch) and (self.epoch<self.max_real_collection_epoch)):
             #collect new real expl paths
             new_real_paths = self.real_data_collector.collect_new_paths(
                 self.max_path_length,
@@ -311,7 +313,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def plot_path_before_training(self):
         # fig, axes= plt.subplots(nrows=self.num_epochs, ncols=10,figsize=[20,int(((self.num_epochs-1)/5)+1)* 5])
         # cols=["SimExpPath0", "RealExpPath0", "RealEvalPath0","SimExpPath1", "RealExpPath1", "RealEvalPath1"]
-        # cols=["Ep"+str(epoch+1) for epoch in range(self.num_epochs)]
+        # cols=["Ep"+str(self.epoch+1) for self.epoch in range(self.num_epochs)]
         # for ax, col in zip(axes[0], cols):
         #     ax.set_title(col, size='small')
         # for ax, col in zip(axes[0], col):
@@ -326,7 +328,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.plot_num=0
         # self.plot_path_steps()
 
-    def plot_path_steps(self, epoch):
+    def plot_path_steps(self):
         num_paths=15
         self.num_rows=6
         self.num_cols=int(self.num_epochs/self.plot_episodes_period)+1
@@ -344,12 +346,12 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
         for j in range(len(eval_new_paths)):
             plt.subplot(self.num_rows, self.num_cols, self.plot_num+ j*self.num_cols)
-            plt.title("epoch"+ str(epoch))
+            plt.title("epoch"+ str(self.epoch))
             # m_expl_env.observation_space.low[0]
             plt.ylim(self.sim_exploration_env.observation_space.low[0], self.sim_exploration_env.observation_space.high[0])
             plt.xlim(self.sim_exploration_env.observation_space.low[1], self.sim_exploration_env.observation_space.high[1])
             # print(i,j)
-            # plt.title str(epoch))
+            # plt.title str(self.epoch))
             print(len(eval_new_paths[j]))
             for i in range(min(num_paths,len(eval_new_paths[j]))):
                 eval_states=eval_new_paths[j][i]["next_observations"]

@@ -151,7 +151,9 @@ def experiment(variant):
         iid_at_init=variant['iid_at_init'], 
         render=variant['render'], 
         lamda=variant['lamda'], 
-        fixed_lamda=variant['lamda']
+        fixed_lamda=variant['lamda'], 
+        max_real_collection_epoch= variant['max_real_collection_epoch']
+
 
 
     )
@@ -165,19 +167,20 @@ if __name__ == "__main__":
 
     parser= argparse.ArgumentParser()
     parser.add_argument("-s","--seed", type=int, default=1 )
-    parser.add_argument("-r","--resize_factor", type=int, default=1 )
+    parser.add_argument("-r","--resize", type=int, default=1 )
     parser.add_argument("-n", "--name", type=str, default="unnamed")
-    parser.add_argument("-i", "--init_episodes", type=int, default=1)
-    parser.add_argument("--sim_episodes_per_epoch", type= int, default=5)
-    parser.add_argument("--real_episodes_per_epoch", type=int, default=1)
+    parser.add_argument("-i", "--init_epi", type=int, default=1)
+    parser.add_argument("--sim_epi_p_ep", type= int, default=5)
+    parser.add_argument("--real_epi_p_ep", type=int, default=1)
+    parser.add_argument("--max_real_ep", type=int, default=1)
     parser.add_argument("-c", "--nctspi", type=int, default=5, help="num_of_classifier_train_steps_per_iter")
     parser.add_argument("-m", "--mean", type=float, default=.6)
     parser.add_argument("-d", "--std", type=float, default=1)
-    parser.add_argument("-t", "--num_trains_per_train_loop", type=int, default=2000)
+    parser.add_argument("-t", "--sub_ep", type=int, default=2000)
     parser.add_argument("-l", "--rl_on_real", type=int, default=0)
     # parser.add_argument("-u", "--unmodified_reward", type=int, default=0)
-    parser.add_argument("-a", "--lamda", type=float, default=1)
-    parser.add_argument("-f", "--fixed_lamda", type=bool, default=True)
+    parser.add_argument("-a", "--lmda", type=float, default=1)
+    parser.add_argument("-f", "--fxd_lmda", type=bool, default=True)
     # parser.add_argument("-a", "--unmodified_reward", type=int, default=0)
 
     args=parser.parse_args()
@@ -192,12 +195,12 @@ if __name__ == "__main__":
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
             num_epochs=100000,
-            num_eval_steps_per_epoch=10000*args.resize_factor,
-            num_trains_per_train_loop=args.num_trains_per_train_loop,
+            num_eval_steps_per_epoch=10000*args.resize,
+            num_trains_per_train_loop=args.sub_ep,
             # num_expl_steps_per_train_loop=1000,
             # min_num   _steps_before_training=1000,
             # max_path_length=1000,
-            max_episode_length=1000*args.resize_factor,
+            max_episode_length=1000*args.resize,
             batch_size=256, 
         ),   
         trainer_kwargs=dict( 
@@ -212,16 +215,16 @@ if __name__ == "__main__":
         rl_on_real=args.rl_on_real,
         batch_rl=False,
         hardcode_classifier=False , 
-        init_episode=args.init_episodes, 
+        init_episode=args.init_epi, 
         num_classifier_init_epoch=2, 
         num_classifier_train_steps_per_iter=args.nctspi,
         sparse=True,
-        tolerance=1*args.resize_factor,#needed for rewards if sparse, and also for calculating accuracy
+        tolerance=1*args.resize,#needed for rewards if sparse, and also for calculating accuracy
         init_paths_random=True,
         constant_start_state_init=False, 
         constant_start_state_while_training=False, 
         should_plot=False,
-        resize_factor=args.resize_factor,
+        resize_factor=args.resize,
         seed=args.seed, 
         num_SAS=1,
         num_SA=0, 
@@ -231,15 +234,22 @@ if __name__ == "__main__":
         sim_action_mean=args.mean,
         sim_action_std_dev= args.std, 
         # train_on_sim_with_modified_rewards=1-args.unmodified_reward, 
-        sim_episodes_per_epoch=args.sim_episodes_per_epoch,
-        real_episodes_per_epoch=args.real_episodes_per_epoch,
-        fixed_lamda= args.fixed_lamda, 
-        lamda=args.lamda
+        sim_episodes_per_epoch=args.sim_epi_p_ep,
+        real_episodes_per_epoch=args.real_epi_p_ep,
+        fixed_lamda= args.fxd_lmda, 
+        lamda=args.lmda, 
+        max_real_collection_epoch= args.max_real_ep, #args.max_real_collection_epoch
 
 
     )
+    # print()
+    # print()
+    # print()
+    # print(variant['max_real_collection_epoch'])
+    # import pdb;pdb.set_trace()
     setup_logger('name-of-experiment', variant=variant, args=args)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
+
     experiment(variant) 
 #TODO: auto initialise variables from env name and experiment type 
 
@@ -257,3 +267,8 @@ if __name__ == "__main__":
 # train RL on sim with modification only from init data, test rl on real 
 # train RL on sim with modification with new data, test rl on real 
 
+
+# Pointenv:
+# num_eval_steps_per_epoch
+# max_episode_length= 50* resize_factor
+# batch_rl=True

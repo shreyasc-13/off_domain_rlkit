@@ -157,6 +157,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                     self.real_expl_env.get_diagnostics(real_expl_paths),
                     prefix='real_exploration/',
                 )
+            # print(real_expl_paths)
             logger.record_dict(
                 eval_util.get_generic_path_information(real_expl_paths, self.rl_on_real, classifier=self.classifier.predict if not self.rl_on_real else None),
                 prefix="real_exploration/",

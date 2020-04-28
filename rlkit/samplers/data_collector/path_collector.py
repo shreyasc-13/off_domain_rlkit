@@ -89,13 +89,13 @@ class MdpPathCollector(PathCollector):
             ('num paths total', self._num_paths_total),
         ])
         #if collecting paths online.
-        if self._epoch_paths:
-            path_lens =[len(path['actions']) for path in self._epoch_paths]
-            stats.update(create_stats_ordered_dict(
-                "path length",
-                path_lens,
-                always_show_all_stats=True,
-            ))
+        # if self._epoch_paths:
+        path_lens =[len(path['actions']) for path in self._epoch_paths]
+        stats.update(create_stats_ordered_dict(
+            "path length",
+            path_lens,
+            always_show_all_stats=True,
+        ))
         return stats
 
     def get_snapshot(self):

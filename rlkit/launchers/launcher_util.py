@@ -177,7 +177,7 @@ def create_exp_name(exp_prefix, exp_id=0, args=None):
     """
     # import pdb;pdb.set_trace()
     args_string="-".join(sorted([key+str(val) for (key, val) in vars(args).items()]))
-    seed, resize_factor,name, init_episodes=args.seed, args.resize_factor,args.name, args.init_episodes
+    # seed, resize_factor,name, init_episodes=args.seed, args.resize_factor,args.name, args.init_episodes
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
     return "%s_%s_%04d--s-%s" % (exp_prefix, timestamp, exp_id, args_string)

@@ -24,9 +24,10 @@ items=[
 
 [
 ("sim_exploration/num steps total",), 
-("real_exploration/num steps total",), 
-("eval_sim/num steps total",), 
-("eval_real/num steps total",),  ], 
+("real_exploration/num steps total",),],
+# [("eval_sim/num steps total",), 
+# ("eval_real/num steps total",),  ],  
+
 
 [("classifierSAS__classifier_train_acc_ensamble_num_0",), 
 ("classifierSAS__classifier_train_loss_ensamble_num_0",)], 
@@ -38,38 +39,28 @@ items=[
 
 ]
 
-
-
-#num steps:  
-#deltaR (with std): 
-#Returns:
-#Q loss: trainer/QF1 Loss trainer/QF2 Loss
-#policy loss:  trainer/Policy Loss
-#classifier: 
-
-
-
-plot_folder="/home/swapnil/DRL/offDyna/data/Apr_25th/"
+plot_folder="/home/swapnil/DRL/offDyna/data/Apr_27th/"
 # mean0.6-nameLunar_lander_delta_fixed_-nctspi10-num_trains_per_train_loop2000-real_episodes_per_epoch1-resize_factor1-rl_on_real0-seed0-sim_episodes_per_epoch5-std1.0
 dirs=os.listdir(plot_folder)
 dirs= [os.path.join(plot_folder, dir_) for dir_ in dirs]
-substrs=[("fixed_lamdaTrue-init_episodes1-lamda","-mean0.6-nameLunar_lander_delta_fixed_-nctspi10-num_trains_per_train_loop2000-real_episodes_per_epoch1-resize_factor1-rl_on_real0-seed0-sim_episodes_per_epoch5-std")]
+substrs=[("lmda0.05-max_real_ep", "-mean0.6-nameLunar_lander_delta_fixed_-nctspi10-real_epi_p_ep1-resize1-rl_on_real0-seed", "-sim_epi_p_ep5-std0.3-sub_ep2000")]
 color= ["orange", "green", "blue", "red", ]
-
-std=["0.3", "1.0"]
+max_real_eps=['10000', '50', '100', '200']
+# std=["0.3"]#, "1.0"]
+seeds=["0", "1", "2"]
 # modified=["0", "1"]
-num_rows=len(std)
+num_rows=len(seeds)
 num_cols=len(items)
-lamdas=["0.01", "0.03", "0.06", "0.08", "0.12", "0.15", "0.0","0.1", "0.05", "0.5","0.75", "1.0","10.0" ]
-for lamda in lamdas:
+# lamdas=['0.05']#"0.01", "0.03", "0.06", "0.08", "0.12", "0.15", "0.0","0.1", "0.05", "0.5","0.75", "1.0","10.0" ]
+# for lamda in lamdas:
+for max_real_ep in max_real_eps:
 	fig=plt.figure(figsize=(26, 5))
 	for i in range(len(substrs)):
 		for folder in dirs:
-			for k in range(len(std)):
-				if  folder.endswith(substrs[i][0]+lamda+substrs[i][1]+std[k]) and os.path.isfile(os.path.join(folder,"progress.csv")):
+			for k in range(len(seeds)):
+				if  folder.endswith(substrs[i][0]+max_real_ep+substrs[i][1]+seeds[k]+substrs[i][2] ) and os.path.isfile(os.path.join(folder,"progress.csv")):
 					data=pd.read_csv(os.path.join(folder,"progress.csv"))
 					epoch=data['Epoch']
-					# 
 
 					for j in range(len(items)):
 						handles=[]
@@ -81,7 +72,7 @@ for lamda in lamdas:
 
 							# ax.tick_params(axis='both', which='major', labelsize=5)
 							plt.xlabel("epoch", fontsize="x-small");
-							plt.title("sim std:"+ str(std[k]) + " lamda" + lamda,  fontsize="xx-small")
+							plt.title("seed:"+ str(seeds[k]) + " lamda 0.05" ,  fontsize="xx-small")
 							# print(curve[0])
 							# import pdb;pdb.set_trace()
 							handles.append( plt.plot(epoch,data[curve[0]], alpha=0.5, color=color[l], label=curve[0][0:min(len(curve[0]),36)], markersize=1)[0].__dict__['_label'])
@@ -90,6 +81,8 @@ for lamda in lamdas:
 							# handles, labels = ax.get_legend_handles_labels()
 						plt.legend(handles, loc='best', fontsize='xx-small')
 	plt.tight_layout()
+	plt.suptitle("LunarLander. rl on sim with deltaR. 5.12k init real expl steps. Sampled 1k additional real exploration steps every epoch till " +str( max_real_ep)+"k total steps reached")
+	
 	plt.show()
 
 
