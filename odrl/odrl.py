@@ -229,7 +229,7 @@ if __name__ == "__main__":
         batch_rl=False,
         hardcode_classifier=False , 
         init_episode=args.init_epi, 
-        num_classifier_init_epoch=2, 
+        num_classifier_init_epoch=20, 
         num_classifier_train_steps_per_iter=args.nctspi,
         sparse=True,
         tolerance=1*args.resize,#needed for rewards if sparse, and also for calculating accuracy

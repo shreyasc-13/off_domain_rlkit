@@ -76,9 +76,10 @@ class classifier:
             self.criterion = nn.CrossEntropyLoss()
             self.metrics={"loss": [],"acc":[]}
 
-    def  classifier_init_training(self, sim_replay_buffer, real_replay_buffer, init_classifier_batch_size, num_epochs):
+    def  classifier_init_training(self, sim_replay_buffer, real_replay_buffer, eval_sim_replay_buffer,  eval_real_replay_buffer, init_classifier_batch_size, num_epochs):
         self.batch_size=init_classifier_batch_size
-        trainX,trainY,valX,valY,testX,testY=self.get_data(sim_replay_buffer,real_replay_buffer)
+        trainX,trainY=self.get_data(sim_replay_buffer,real_replay_buffer)
+        valX, valY= self.get_data(eval_sim_replay_buffer,  eval_real_replay_buffer)
         train_dataset =loader(trainX,trainY, self.obs_dim,self.action_dim, self.SA)
         self.train_loader=DataLoader(train_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)
         val_dataset =loader(valX,valY, self.obs_dim,self.action_dim, self.SA)
@@ -229,12 +230,12 @@ class classifier:
         # for i in range(len(sim_memory[1])):
         #     plt.subplot(5, 4, i)
         X,Y=self.mixer(sim_memory, real_memory)
-        len_data=len(Y)
-        trainX=X[:int(len_data*.90)]
-        trainY=Y[:int(len_data*.90)]
-        valX=X[int(len_data*.90):]
-        valY=Y[int(len_data*.90):]
-        return trainX,trainY,valX,valY, None, None
+        # len_data=len(Y)
+        # trainX=X[:int(len_data*.90)]
+        # trainY=Y[:int(len_data*.90)]
+        # valX=X[int(len_data*.90):]
+        # valY=Y[int(len_data*.90):]
+        return X, Y #trainX,trainY,valX,valY, None, None
 
     # TODO: should I normalize the input
     def convert_to_input_form(self, batch):
@@ -322,11 +323,11 @@ class classifier_ensambler():
             for i in range(self.num_SA):
                 self.SA_classifiers.append(classifier(  init_classifier_batch_size=init_classifier_batch_size,hardcode=hardcode, real_env=real_env,  sim_env=sim_env, seed=i+num_SAS*seed, SA=True))
 
-    def classifier_init_training(self, sim_replay_buffer, real_replay_buffer, init_classifier_batch_size, num_epochs):
+    def classifier_init_training(self, sim_replay_buffer, real_replay_buffer,eval_sim_replay_buffer,  eval_real_replay_buffer, init_classifier_batch_size, num_epochs):
         for i in range(self.num_SAS):
-            self.SAS_classifiers[i].classifier_init_training(sim_replay_buffer, real_replay_buffer, init_classifier_batch_size, num_epochs)
+            self.SAS_classifiers[i].classifier_init_training(sim_replay_buffer, real_replay_buffer, eval_sim_replay_buffer,  eval_real_replay_buffer, init_classifier_batch_size, num_epochs)
         for i in range(self.num_SA):
-            self.SA_classifiers[i].classifier_init_training(sim_replay_buffer, real_replay_buffer, init_classifier_batch_size, num_epochs)
+            self.SA_classifiers[i].classifier_init_training(sim_replay_buffer, real_replay_buffer, eval_sim_replay_buffer,  eval_real_replay_buffer, init_classifier_batch_size, num_epochs)
 
     def train(self, data, label):
         for i in range(self.num_SAS):

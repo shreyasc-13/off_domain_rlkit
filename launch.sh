@@ -1,4 +1,4 @@
-name="Ll_early_stop"
+name="LL"
 for seed in 0 1 2
 do
 for resize_factor in 1
