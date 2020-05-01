@@ -184,7 +184,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--init_epi", type=int, default=1)
     parser.add_argument("--sim_epi_p_ep", type= int, default=5)
     parser.add_argument("--real_epi_p_ep", type=int, default=1)
-    parser.add_argument("--max_real_in_k", type=float, default=8.0)
+    parser.add_argument("--max_real_in_k", type=float, default=200.2)
     parser.add_argument("--real_freq", type=int, default=2)
     parser.add_argument("-c", "--nctspi", type=int, default=5, help="num_of_classifier_train_steps_per_iter")
     parser.add_argument("-m", "--mean", type=float, default=.6)

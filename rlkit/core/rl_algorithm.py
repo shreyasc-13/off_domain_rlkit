@@ -200,11 +200,11 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         )
 
 
-
-        logger.record_dict( OrderedDict([('eval_sim_acc', self.eval_sim_acc)]), 
-                    prefix="evaluation/")
-        logger.record_dict( OrderedDict([('eval_real_acc', self.eval_real_acc)]), 
-            prefix="evaluation/")
+        # TODO: if  Pointenv
+        #     logger.record_dict( OrderedDict([('eval_sim_acc', self.eval_sim_acc)]), 
+        #                 prefix="evaluation/")
+        #     logger.record_dict( OrderedDict([('eval_real_acc', self.eval_real_acc)]), 
+        #         prefix="evaluation/")
         logger.record_dict( OrderedDict([('num_trains_per_train_loop', self.num_train_loops_per_epoch)]), 
             prefix="")
 

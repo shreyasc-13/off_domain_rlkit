@@ -59,6 +59,8 @@ class classifier:
         self.name="SA_" if self.SA else "SAS_"
         self.obs_dim = sim_env.observation_space.low.size
         self.action_dim = sim_env.action_space.low.size
+        self.val_out_post_processing= nn.Softmax(dim=1)
+
         if hardcode==True:
             self.hardcode=hardcode(sim_env, real_env, SA, self.obs_dim, self.action_dim)
         else:
@@ -69,6 +71,8 @@ class classifier:
             self.scheduler= ReduceLROnPlateau(self.optimizer, 'min')
             self._train_loss=[]
             self._train_acc=[]
+            self._val_loss=[]
+            self._val_acc=[]            
             self.criterion = nn.CrossEntropyLoss()
             self.metrics={"loss": [],"acc":[]}
 
@@ -79,8 +83,9 @@ class classifier:
         self.train_loader=DataLoader(train_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)
         val_dataset =loader(valX,valY, self.obs_dim,self.action_dim, self.SA)
         self.val_loader=DataLoader(val_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)     
-        self.best_val_loss=10e14; self.patience=2; self.wait=0; self.min_delta=1e-3
+        self.best_val_loss=10e14; self.patience=10; self.wait=0; self.min_delta=0
         self.init_train(num_epochs)
+        self.wait=0 # reinitialize early stopping
 
 
     def init_train(self, max_epoch):
@@ -100,17 +105,19 @@ class classifier:
         return
 
     def train(self, data, label):
-        self.model.train()
-        self.optimizer.zero_grad()
-        inp = Variable(data.to(device))
-        Y = Variable(label.long().to(device))
-        out = self.model(inp.float())
-        loss = self.criterion(out, Y) 
-        loss.backward()
-        self.optimizer.step()
-        out_post_processing= nn.Softmax(dim=1)
-        predictions=out_post_processing(out)[:, 1]>0.5; acc = ((predictions.long() == Y).float().sum())/len(label)
-        return loss.data, acc
+        if self.wait<=self.patience:
+            self.model.train()
+            self.optimizer.zero_grad()
+            inp = Variable(data.to(device))
+            Y = Variable(label.long().to(device))
+            out = self.model(inp.float())
+            loss = self.criterion(out, Y) 
+            loss.backward()
+            self.optimizer.step()
+            out_post_processing= nn.Softmax(dim=1)
+            predictions=out_post_processing(out)[:, 1]>0.5; acc = ((predictions.long() == Y).float().sum())/len(label)
+            return loss.data, acc
+        return 0, 0
 
  
     def classifier_train_from_batch(self, sim_batch, real_batch):
@@ -119,12 +126,25 @@ class classifier:
         data=torch.cat((sim_in, real_in), 0)
         label=torch.cat((torch.Tensor([0]*len(sim_in)), torch.Tensor([1]*len(real_in))), 0)
         loss, acc=self.train(data, label)
-        print(loss, acc)
         self._train_loss.append(loss), self._train_acc.append(acc)
 
+ 
+    def classifier_val_from_batch(self, sim_batch, real_batch):
+        sim_in = self.convert_to_input_form(sim_batch)
+        real_in = self.convert_to_input_form(real_batch)
+        data=torch.cat((sim_in, real_in), 0)
+        label=torch.cat((torch.Tensor([0]*len(sim_in)), torch.Tensor([1]*len(real_in))), 0)
+        loss, acc=self.val(data, label)
+        self._val_loss.append(loss), self._val_acc.append(acc)
 
+    def val(self, data, label):
+        out=self.predict(data)
+        Y = Variable(label.long().to(device))
+        loss = self.criterion(out, Y) 
+        predictions=self.val_out_post_processing(out)[:, 1]>0.5; acc = ((predictions.long() ==  Y).float().sum())/len(label)
+        return loss.data, acc
 
-    def validate(self,epoch):
+    def validate(self,epoch ):
         val_acc=0; val_loss=0
         batch_idx=-1
         for batch_idx, (data, label) in enumerate(self.val_loader):
@@ -151,6 +171,8 @@ class classifier:
         print("Epoch {},  Val Loss: {}, Val Accuracy: {}".format(epoch+1, val_loss, val_acc))
         return val_loss
 
+
+
     def predict(self, data):
             inp=Variable(data[:,:self.input_size].to(device))
             self.model.eval()
@@ -168,12 +190,20 @@ class classifier:
             return True
 
     def get_diagnostics(self, ensamble_num=0):
-        print(self._train_loss, self._train_acc)
-        loss=torch.mean(torch.Tensor(self._train_loss))
-        acc=torch.mean(torch.Tensor(self._train_acc))
-        print( self.name+' classifier train loss, ensamble_num '+str(ensamble_num),loss.data.item() , self.name+' classifier train acc, ensamble_num '+str(ensamble_num), acc.data.item() )
-        res=OrderedDict([( self.name+'_classifier_train_loss_ensamble_num_'+str(ensamble_num),loss.data.item() ), (self.name+'_classifier_train_acc_ensamble_num_'+str(ensamble_num), acc.data.item())])
-        self._train_loss, self._train_acc=[],[]
+        train_loss=torch.mean(torch.Tensor(self._train_loss)).data.item() if self._train_loss else 0
+        train_acc=torch.mean(torch.Tensor(self._train_acc)).data.item() if self._train_loss else 0
+        val_loss=torch.mean(torch.Tensor(self._val_loss)).data.item()
+        val_acc=torch.mean(torch.Tensor(self._val_acc)).data.item()
+
+        if self.wait<=self.patience: 
+            self.scheduler.step(val_loss-train_loss) 
+        res=OrderedDict([( self.name+'_train_loss_ensamble_num_'+str(ensamble_num),train_loss ), 
+                        (self.name+'_train_acc_ensamble_num_'+str(ensamble_num), train_acc), 
+                        ( self.name+'_val_loss_ensamble_num_'+str(ensamble_num),val_loss ), 
+                        (self.name+'_val_acc_ensamble_num_'+str(ensamble_num), val_acc), 
+                        ])
+        self._train_loss, self._train_acc, self._val_loss, self._val_acc =[],[], [], []
+
         return res
 
     def mixer(self, X, X1):
@@ -309,6 +339,13 @@ class classifier_ensambler():
             self.SAS_classifiers[i].classifier_train_from_batch( sim_batch, real_batch)
         for i in range(self.num_SA):
             self.SA_classifiers[i].classifier_train_from_batch( sim_batch, real_batch)
+
+    def classifier_val_from_batch(self, sim_batch, real_batch):
+        for i in range(self.num_SAS):
+            self.SAS_classifiers[i].classifier_val_from_batch( sim_batch, real_batch)
+        for i in range(self.num_SA):
+            self.SA_classifiers[i].classifier_val_from_batch( sim_batch, real_batch)
+
     def  predict(self, data, result_type="mean"):
         out, out_SA=[], []
         for i in range(self.num_SAS):
