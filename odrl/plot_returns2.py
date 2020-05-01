@@ -38,14 +38,18 @@ items=[
 [("trainer/Policy Loss",)]
 
 ]
-
-plot_folder="/home/swapnil/DRL/offDyna/data/Apr_27th/"
+plot_folder="/home/swapnil/DRL/offDyna/data/Apr_29th/"
 # mean0.6-nameLunar_lander_delta_fixed_-nctspi10-num_trains_per_train_loop2000-real_episodes_per_epoch1-resize_factor1-rl_on_real0-seed0-sim_episodes_per_epoch5-std1.0
+# lmda1-max_real_ep200-mean0.6-nameunnamed-nctspi5-real_epi_p_ep1-real_freq2-resize1-rl_on_real0-seed1-sim_epi_p_ep5-std1-sub_ep2000
 dirs=os.listdir(plot_folder)
 dirs= [os.path.join(plot_folder, dir_) for dir_ in dirs]
-substrs=[("lmda0.05-max_real_ep", "-mean0.6-nameLunar_lander_delta_fixed_-nctspi10-real_epi_p_ep1-resize1-rl_on_real0-seed", "-sim_epi_p_ep5-std0.3-sub_ep2000")]
+# -mean0.6-nameLunar_lander-nctspi10-real_epi_p_ep1-real_freq2-resize1-rl_on_real0-seed0-sim_epi_p_ep5-std0.3-sub_ep2000
+# 'lmda0.05-max_real_ep200-mean0.6-nameLunar_lander-nctspi10-real_epi_p_ep1-real_freq2-resize1-rl_on_real0-seed0-sim_epi_p_ep5-std0.3-sub_ep2000
+# 'lmda0.05-max_real_ep200-mean0.6-nameLunar_lander-nctspi10-real_epi_p_ep1-real_freq4-resize1-rl_on_real0-seed1-sim_epi_p_ep5-std0.3-sub_ep2000
+substrs=[("lmda0.05-max_real_ep200-mean0.6-nameLunar_lander-nctspi10-real_epi_p_ep1-real_freq", "-resize1-rl_on_real0-seed", "-sim_epi_p_ep5-std0.3-sub_ep2000")]
 color= ["orange", "green", "blue", "red", ]
-max_real_eps=['10000', '50', '100', '200']
+real_freqs=['2', '4']
+# max_real_eps=[ '50', '100', '200'] #'10000',
 # std=["0.3"]#, "1.0"]
 seeds=["0", "1", "2"]
 # modified=["0", "1"]
@@ -53,15 +57,17 @@ num_rows=len(seeds)
 num_cols=len(items)
 # lamdas=['0.05']#"0.01", "0.03", "0.06", "0.08", "0.12", "0.15", "0.0","0.1", "0.05", "0.5","0.75", "1.0","10.0" ]
 # for lamda in lamdas:
-for max_real_ep in max_real_eps:
+# for max_real_ep in max_real_eps:
+for real_freq in real_freqs:
 	fig=plt.figure(figsize=(26, 5))
 	for i in range(len(substrs)):
 		for folder in dirs:
 			for k in range(len(seeds)):
-				if  folder.endswith(substrs[i][0]+max_real_ep+substrs[i][1]+seeds[k]+substrs[i][2] ) and os.path.isfile(os.path.join(folder,"progress.csv")):
+				# import pdb;pdb.set_trace()
+				if  folder.endswith(substrs[i][0]+real_freq+substrs[i][1]+seeds[k]+substrs[i][2] ) and os.path.isfile(os.path.join(folder,"progress.csv")):
 					data=pd.read_csv(os.path.join(folder,"progress.csv"))
 					epoch=data['Epoch']
-
+					
 					for j in range(len(items)):
 						handles=[]
 						plt.subplot(num_rows,len(items), k*num_cols+j+1)
@@ -81,7 +87,7 @@ for max_real_ep in max_real_eps:
 							# handles, labels = ax.get_legend_handles_labels()
 						plt.legend(handles, loc='best', fontsize='xx-small')
 	plt.tight_layout()
-	plt.suptitle("LunarLander. rl on sim with deltaR. 5.12k init real expl steps. Sampled 1k additional real exploration steps every epoch till " +str( max_real_ep)+"k total steps reached")
+	plt.suptitle("LunarLander. rl on sim with deltaR. 5.12k init real expl steps. Sampled 1k additional real exploration steps with " +str( real_freq)+" epochs. Max allowed real samples: 200k")
 	
 	plt.show()
 

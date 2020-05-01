@@ -27,12 +27,14 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_epochs,
             num_eval_steps_per_epoch,
             num_trains_per_train_loop,
-            evaluation_real_data_collector: PathCollector,
-            evaluation_sim_data_collector: PathCollector,
+            eval_real_data_collector: PathCollector,
+            eval_sim_data_collector: PathCollector,
             sim_data_collector: PathCollector,
             real_data_collector: PathCollector,
             sim_replay_buffer: ReplayBuffer,
             real_replay_buffer: ReplayBuffer,
+            eval_sim_replay_buffer: ReplayBuffer,
+            eval_real_replay_buffer: ReplayBuffer,
             num_real_steps_at_init=10000,
             num_sim_steps_at_init=0,
             num_real_steps_per_epoch=100,
@@ -58,7 +60,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             render=False, 
             lamda=1,
             fixed_lamda=1, 
-            max_real_collection_epoch= 1000
+            max_real_steps= 1000000, 
+            real_freq=1,
     ):
 
 
@@ -71,8 +74,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             evaluation_real_env,
             sim_data_collector,
             real_data_collector, 
-            evaluation_real_data_collector,
-            evaluation_sim_data_collector,
+            eval_real_data_collector,
+            eval_sim_data_collector,
             sim_replay_buffer,
             real_replay_buffer,
             rl_on_real,
@@ -120,7 +123,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.render=render
         self.fixed_lamda=fixed_lamda
         self.lamda=lamda
-        self.max_real_collection_epoch= max_real_collection_epoch
+        self.max_real_steps= max_real_steps
+        self.real_freq=real_freq
 
     def _train(self):
 
@@ -159,6 +163,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.training_mode(True)
                 # for num_trains_per_train_loop, randomly sample from the buffer and train. 
                 for train_num in range(self.num_trains_per_train_loop):
+
                     if self.rl_on_real:
                         train_data =self.real_replay_buffer.random_batch(self.batch_size)
                         self.trainer.train(train_data)
@@ -283,7 +288,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
     def add_new_experince_to_buffer(self):
         new_sim_paths, new_real_paths=None, None
-        #collect new sim expl paths
         if self.num_sim_steps_per_epoch:
             new_sim_paths = self.sim_data_collector.collect_new_paths(
                 self.max_path_length,
@@ -295,7 +299,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.sim_replay_buffer.add_paths(new_sim_paths)
             gt.stamp('data storing', unique=False)
 
-        if ((self.num_real_steps_per_epoch) and (self.epoch<self.max_real_collection_epoch)):
+        if ((self.num_real_steps_per_epoch) and (self.real_replay_buffer._size<self.max_real_steps) and (not self.epoch%self.real_freq)):
             #collect new real expl paths
             new_real_paths = self.real_data_collector.collect_new_paths(
                 self.max_path_length,

@@ -33,8 +33,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             sim_data_collector: DataCollector,
             real_data_collector: DataCollector,
             # evaluation_data_collector: DataCollector,
-            evaluation_real_data_collector:DataCollector,
-            evaluation_sim_data_collector:DataCollector,
+            eval_real_data_collector:DataCollector,
+            eval_sim_data_collector:DataCollector,
             sim_replay_buffer: ReplayBuffer,
             real_replay_buffer: ReplayBuffer,
             rl_on_real,
@@ -47,8 +47,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
         self.sim_data_collector = sim_data_collector
         self.real_data_collector = real_data_collector
-        self.eval_real_data_collector = evaluation_real_data_collector
-        self.eval_sim_data_collector= evaluation_sim_data_collector
+        self.eval_real_data_collector = eval_real_data_collector
+        self.eval_sim_data_collector= eval_sim_data_collector
         self.sim_replay_buffer = sim_replay_buffer
         self.real_replay_buffer= real_replay_buffer
         self._start_epoch = 0

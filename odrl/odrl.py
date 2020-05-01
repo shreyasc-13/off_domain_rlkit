@@ -94,6 +94,14 @@ def experiment(variant):
         variant['replay_buffer_size'],
         real_expl_env,
     )
+    eval_sim_replay_buffer= EnvReplayBuffer(
+        variant['replay_buffer_size'],
+        sim_eval_env,
+    )
+    eval_real_replay_buffer= EnvReplayBuffer(
+        variant['replay_buffer_size'],
+        real_eval_env,
+    )
     trainer_env= real_expl_env if variant['rl_on_real'] ==True else sim_expl_env
     trainer = SACTrainer(
         env=trainer_env,
@@ -120,12 +128,15 @@ def experiment(variant):
         num_epochs=variant['algorithm_kwargs']['num_epochs'],
         num_eval_steps_per_epoch=variant['algorithm_kwargs']['num_eval_steps_per_epoch'],
         num_trains_per_train_loop=variant['algorithm_kwargs']['num_trains_per_train_loop'],
-        evaluation_real_data_collector=eval_real_path_collector,
-        evaluation_sim_data_collector=eval_sim_path_collector,
+        eval_real_data_collector=eval_real_path_collector,
+        eval_sim_data_collector=eval_sim_path_collector,
         sim_data_collector= sim_path_collector,
         real_data_collector=real_path_collector,
         sim_replay_buffer=sim_replay_buffer,
         real_replay_buffer= real_replay_buffer,
+        eval_sim_replay_buffer=eval_sim_replay_buffer,
+        eval_real_replay_buffer= eval_real_replay_buffer,
+
 
         num_real_steps_at_init=     max(5120,variant['init_episode']*max_episode_steps), #if variant['rl_on_real'] else int(max_episode_steps* num_trains_per_train_loop/1000) # if not variant['hardcode_classifier'] else 0, #if variant['rl_on_real']  alse 10*max_episode_steps,
         num_sim_steps_at_init=      0  if variant['rl_on_real'] else   max(5120, int(variant['init_episode']* max_episode_steps)),#* num_trains_per_train_loop/1000)), #variant['init_episode']*max_episode_steps, #int(max_episode_steps* num_trains_per_train_loop/1000)# max(variant['init_episode'], 5)*max_episode_steps ,
@@ -152,7 +163,8 @@ def experiment(variant):
         render=variant['render'], 
         lamda=variant['lamda'], 
         fixed_lamda=variant['lamda'], 
-        max_real_collection_epoch= variant['max_real_collection_epoch']
+        max_real_steps= variant['max_real_steps'],
+        real_freq= variant['real_freq']
 
 
 
@@ -172,7 +184,8 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--init_epi", type=int, default=1)
     parser.add_argument("--sim_epi_p_ep", type= int, default=5)
     parser.add_argument("--real_epi_p_ep", type=int, default=1)
-    parser.add_argument("--max_real_ep", type=int, default=1)
+    parser.add_argument("--max_real_in_k", type=float, default=8.0)
+    parser.add_argument("--real_freq", type=int, default=2)
     parser.add_argument("-c", "--nctspi", type=int, default=5, help="num_of_classifier_train_steps_per_iter")
     parser.add_argument("-m", "--mean", type=float, default=.6)
     parser.add_argument("-d", "--std", type=float, default=1)
@@ -238,15 +251,12 @@ if __name__ == "__main__":
         real_episodes_per_epoch=args.real_epi_p_ep,
         fixed_lamda= args.fxd_lmda, 
         lamda=args.lmda, 
-        max_real_collection_epoch= args.max_real_ep, #args.max_real_collection_epoch
+        max_real_steps= args.max_real_in_k*1000 , #args.max_real_collection_epoch
+        real_freq=args.real_freq
 
 
     )
-    # print()
-    # print()
-    # print()
-    # print(variant['max_real_collection_epoch'])
-    # import pdb;pdb.set_trace()
+
     setup_logger('name-of-experiment', variant=variant, args=args)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
 

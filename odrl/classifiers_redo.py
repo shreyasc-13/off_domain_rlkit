@@ -16,37 +16,37 @@ import scipy
 import sklearn
 from sklearn.calibration import calibration_curve
 
-class Network(nn.Module):
-    def __init__(self, input_size, output_size, unit_count):
-        super().__init__()
-        self.layer1 = nn.Sequential(
-                          nn.Linear(input_size, unit_count),
-                          nn.Dropout(p=0.5), 
-                          nn.ReLU())
-        self.layer2 = nn.Sequential(
-                        nn.Linear(unit_count, unit_count),
-                        nn.Dropout(p=0.5), 
-                        nn.ReLU())
-        # self.layer3 = nn.Sequential(
-        #                 nn.Linear(unit_count, unit_count),
-        #                 nn.Tanh())
-        # self.layer4 = nn.Sequential(
-        #                 nn.Linear(unit_count, unit_count),
-        #                 nn.Tanh())
-        self.layer4 = nn.Sequential(
-                          nn.Linear(unit_count, output_size),
-                          # nn.Softmax(dim=1)
-                          )
+# class Network(nn.Module):
+#     def __init__(self, input_size, output_size, unit_count):
+#         super().__init__()
+#         self.layer1 = nn.Sequential(
+#                           nn.Linear(input_size, unit_count),
+#                           nn.Dropout(p=0.5), 
+#                           nn.ReLU())
+#         self.layer2 = nn.Sequential(
+#                         nn.Linear(unit_count, unit_count),
+#                         nn.Dropout(p=0.5), 
+#                         nn.ReLU())
+#         # self.layer3 = nn.Sequential(
+#         #                 nn.Linear(unit_count, unit_count),
+#         #                 nn.Tanh())
+#         # self.layer4 = nn.Sequential(
+#         #                 nn.Linear(unit_count, unit_count),
+#         #                 nn.Tanh())
+#         self.layer4 = nn.Sequential(
+#                           nn.Linear(unit_count, output_size),
+#                           # nn.Softmax(dim=1)
+#                           )
 
-        return
+#         return
 
-    def forward(self, x):
-        x = self.layer1(x) 
-        x = self.layer2(x) 
-        x = self.layer3(x)
-        x = self.layer4(x)
-        # x = self.layer5(x)
-        return x
+    # def forward(self, x):
+    #     x = self.layer1(x) 
+    #     x = self.layer2(x) 
+    #     x = self.layer3(x)
+    #     x = self.layer4(x)
+    #     # x = self.layer5(x)
+    #     return x
 
 
 class classifier:   
