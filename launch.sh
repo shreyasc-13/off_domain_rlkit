@@ -1,4 +1,4 @@
-name="Lunar_lander"
+name="Ll_early_stop"
 for seed in 0 1 2
 do
 for resize_factor in 1

@@ -85,7 +85,7 @@ class classifier:
         self.val_loader=DataLoader(val_dataset,shuffle=False, batch_size=self.batch_size, drop_last=True)     
         self.best_val_loss=10e14; self.patience=10; self.wait=0; self.min_delta=0
         self.init_train(num_epochs)
-        self.wait=0 # reinitialize early stopping
+        self.wait=0 ;   self.best_val_loss=10e14# reinitialize early stopping
 
 
     def init_train(self, max_epoch):
@@ -196,7 +196,7 @@ class classifier:
         val_acc=torch.mean(torch.Tensor(self._val_acc)).data.item()
 
         if self.wait<=self.patience: 
-            self.scheduler.step(val_loss-train_loss) 
+            self.early_stop(val_loss-train_loss) 
         res=OrderedDict([( self.name+'_train_loss_ensamble_num_'+str(ensamble_num),train_loss ), 
                         (self.name+'_train_acc_ensamble_num_'+str(ensamble_num), train_acc), 
                         ( self.name+'_val_loss_ensamble_num_'+str(ensamble_num),val_loss ), 
