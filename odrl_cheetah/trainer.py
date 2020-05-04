@@ -107,7 +107,8 @@ class SACTrainer(TorchTrainer):
             classifier_input=  torch.cat((obs, actions), 1)
             classifier_input=  torch.cat((classifier_input, next_obs), 1)
             outSAS=classifier(classifier_input)
-            deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
+            # deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
+            deltaR= (outSAS[:, 1] - outSAS[:, 0]).reshape((-1,1))
             #Shreyas edit: Adding a scale up factor for real rewards
             rewards = self.real_reward_scaleup * rewards + deltaR
         """

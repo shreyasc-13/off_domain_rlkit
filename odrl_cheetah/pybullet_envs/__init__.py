@@ -118,12 +118,12 @@ def register(id, *args, **kvargs):
 #     reward_threshold=5.0,
 # )
 #
-# register(
-#     id='KukaBulletEnv-v0',
-#     entry_point='pybullet_envs.bullet:KukaGymEnv',
-#     max_episode_steps=1000,
-#     reward_threshold=5.0,
-# )
+register(
+    id='KukaBulletEnv-v0',
+    entry_point='pybullet_envs.bullet:KukaGymEnv',
+    max_episode_steps=1000,
+    reward_threshold=5.0,
+)
 #
 # register(
 #     id='KukaCamBulletEnv-v0',
@@ -159,20 +159,27 @@ def register(id, *args, **kvargs):
 #     max_episode_steps=1000,
 #     reward_threshold=800.0,
 # )
-#
-# register(
-#     id='ReacherBulletEnv-v0',
-#     entry_point='pybullet_envs.gym_manipulator_envs:ReacherBulletEnv',
-#     max_episode_steps=150,
-#     reward_threshold=18.0,
-# )
-#
-# register(
-#     id='PusherBulletEnv-v0',
-#     entry_point='pybullet_envs.gym_manipulator_envs:PusherBulletEnv',
-#     max_episode_steps=150,
-#     reward_threshold=18.0,
-# )
+
+register(
+    id='ReacherBulletEnv-v0',
+    entry_point='pybullet_envs.gym_manipulator_envs:ReacherBulletEnv',
+    max_episode_steps=150,
+    reward_threshold=18.0,
+)
+
+register(
+    id='ReacherObstacleBulletEnv-v0',
+    entry_point='pybullet_envs.gym_manipulator_envs:ReacherObstacleBulletEnv',
+    max_episode_steps=150,
+    reward_threshold=18.0,
+)
+
+register(
+    id='PusherBulletEnv-v0',
+    entry_point='pybullet_envs.gym_manipulator_envs:PusherBulletEnv',
+    max_episode_steps=150,
+    reward_threshold=18.0,
+)
 #
 # register(
 #     id='ThrowerBulletEnv-v0',

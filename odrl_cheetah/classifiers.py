@@ -1,9 +1,11 @@
 import torch
 from torch import nn as nn
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import  ReduceLROnPlateau
 from collections import OrderedDict
+from rlkit.torch.networks import FlattenMlp
 import math
 
 cuda = torch.cuda.is_available()
@@ -65,8 +67,8 @@ class Network(nn.Module):
                         nn.Linear(unit_count, unit_count),
                         nn.Tanh())
         self.layer4 = nn.Sequential(
-                          nn.Linear(unit_count, output_size),
-                          nn.Softmax(dim=1))
+                          nn.Linear(unit_count, output_size))#,
+                          # nn.Softmax(dim=1))
 
         return
 
@@ -133,7 +135,8 @@ class  Networks(object):
                 inp = Variable(data)
                 out = self.Network(inp.float() )
                 val_loss+=self.criterion(out, Y).data
-                predictions=out[:,1]>0.5
+                # predictions=out[:,1]>0.5
+                _, predictions = out.max(1)
                 val_acc += (predictions.long() == label).float().sum()
             total=(batch_idx+1)*len(label)
             val_acc=val_acc/total
@@ -176,9 +179,11 @@ class  Networks(object):
         Y = Variable(label)
 
         out = self.Network(inp.float())
+        out = F.softmax(out, 1)
         loss = self.criterion(out, Y)
         loss.backward()
-        predictions=out[:,1]>0.5
+        # predictions=out[:,1]>0.5
+        _, predictions = out.max(1)
         acc = ((predictions.long() == label).float().sum())/len(label)
         self.optimizer.step()
         return loss.data, acc
@@ -218,13 +223,14 @@ Classifier class
 #Shreyas TODO: Fix hardcong to applyt to all envs
 class classifier:
     def __init__( self,  init_classifier_batch_size=1024,hardcode=False, real_env=None,  sim_env=None):
-        self.env_state_dim = real_env.observation_space.shape[0]
-        self.env_action_dim = real_env.action_space.shape[0]
+        self.env_state_dim = sim_env.observation_space.shape[0]
+        self.env_action_dim = sim_env.action_space.shape[0]
         self.sas_dim = 2*self.env_state_dim + self.env_action_dim
         if hardcode==True:
             self.SAS_hardcode=SAS_hardcode(sim_env, real_env)
         else:
-            self.SAS_model = Network(input_size =self.sas_dim, output_size = 2, unit_count = 100)
+            # self.SAS_model = Network(input_size =self.sas_dim, output_size = 2, unit_count = 100)
+            self.SAS_model = FlattenMlp(input_size=self.sas_dim, output_size = 2, hidden_sizes= [100,100,100,100])
             self.SAS_model.apply(self.init_model)
             self.SAS_optimizer= torch.optim.Adam(self.SAS_model.parameters(), lr=10e-3)
             self.SAS_scheduler= ReduceLROnPlateau(self.SAS_optimizer, 'min')
@@ -297,11 +303,16 @@ class classifier:
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+
+        #Reacher edit: Shreyas: TO BE REMOVED for general env
+        obs[:, 0:2] = 0.
+        next_obs[:, 0:2] = 0.
+
         mem = torch.cat((torch.Tensor(obs), torch.Tensor(actions)),1)
         mem = torch.cat((torch.Tensor(mem), torch.Tensor(next_obs)),1)
         return mem
 
-    def init_model(m):
+    def init_model(self, m):
         if type(m) == nn.Linear:
             torch.nn.init.xavier_uniform_(m.weight)
             m.bias.data.fill_(0.1)

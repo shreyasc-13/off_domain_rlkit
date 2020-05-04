@@ -114,7 +114,7 @@ class MJCFBasedRobot(XmlBasedRobot):
 	Base class for mujoco .xml based agents.
 	"""
 
-  def __init__(self, model_xml, robot_name, action_dim, obs_dim, is_real, self_collision=True):
+  def __init__(self, model_xml, robot_name, action_dim, obs_dim, is_real=True, self_collision=True):
     XmlBasedRobot.__init__(self, robot_name, action_dim, obs_dim, self_collision)
     self.model_xml = model_xml
     self.doneLoading = 0

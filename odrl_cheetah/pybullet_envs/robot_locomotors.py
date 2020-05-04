@@ -120,7 +120,7 @@ class HalfCheetah(WalkerBase):
                "bthigh"]  # track these contacts with ground
 
   def __init__(self, is_real = True):
-    WalkerBase.__init__(self, "half_cheetah.xml", "torso", action_dim=6, obs_dim=27, power=0.90, is_real=True) #Shreyas:obs_dim
+    WalkerBase.__init__(self, "assets/half_cheetah.xml", "torso", action_dim=6, obs_dim=27, power=0.90, is_real=True) #Shreyas:obs_dim
 
   #Shreyas edir: Adding xpos to the state
   def calc_state(self):
@@ -148,7 +148,7 @@ class HalfCheetahHurdle(WalkerBase):
                  "bthigh"]  # track these contacts with ground
 
     def __init__(self, is_real = True):
-      WalkerBase.__init__(self, "half_cheetah_hurdle.xml", "torso", action_dim=6, obs_dim=27, power=0.90, is_real=True) #Shreyas:obs_dim
+      WalkerBase.__init__(self, "assets/half_cheetah_hurdle.xml", "torso", action_dim=6, obs_dim=27, power=0.90, is_real=True) #Shreyas:obs_dim
 
     #Shreyas edir: Adding xpos to the state
     def calc_state(self):

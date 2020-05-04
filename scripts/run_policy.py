@@ -7,6 +7,7 @@ from rlkit.core import logger
 
 #Shreyas edit: (to get the modified env)
 from odrl_cheetah.pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv #To run from a director above
+from odrl_cheetah import pybullet_envs
 from rlkit.envs.wrappers import NormalizedBoxEnv
 import gym
 from gym import wrappers
@@ -20,7 +21,9 @@ def simulate_policy(args):
     # env = data['evaluation/env'] #Commented out to load the right modifed pybullet env
     #Shreyas edit: ^ and v: To change for a different env
     # env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=True))
-    env = NormalizedBoxEnv(gym.make('HalfCheetahHurdleBulletEnv-v0'))
+    # env = NormalizedBoxEnv(gym.make('HalfCheetahHurdleBulletEnv-v0'))
+    env = gym.make('ReacherObstacleBulletEnv-v0')
+    # env = gym.make('PusherBulletEnv-v0')
     # env = wrappers.Monitor(env, '~/Destop/', force=True) #TODO: add render saving
     print("Policy loaded")
     if args.gpu:

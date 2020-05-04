@@ -93,7 +93,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             if self.hardcode_classifier:
                 self.classifier=classifier(hardcode=self.hardcode_classifier,  real_env=self.real_exploration_env, sim_env=self.sim_exploration_env,)
             else:
-                self.classifier=classifier()
+                self.classifier=classifier(real_env=self.real_exploration_env, sim_env=self.sim_exploration_env)
                 self.classifier.classifier_init_training( sim_init_memory,real_init_memory,
                                                             init_classifier_batch_size=self.classifier_batch_size,
                                                             num_epochs=self.num_classifier_init_epoch)

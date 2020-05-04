@@ -74,18 +74,18 @@
     </body>
     <!-- BEGIN CUSTOM STUFF -->
     <!-- <geom conaffinity="1" condim="3" material="block" name="hurdle-0" pos="-1 0 1" rgba="0.8 0.9 0.8 1" size=".1 1 1" type="box"/> -->
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-1" pos="-15 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-2" pos="-13 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-3" pos="-10 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-4" pos="-7 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-5" pos="-4 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-6" pos="-1 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-8" pos="2 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-9" pos="5 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-10" pos="8 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-11" pos="11 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-12" pos="14 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
-    <geom conaffinity="1" condim="3" material="block" name="hurdle-13" pos="17 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.25" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-1" pos="-15 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-2" pos="-13 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-3" pos="-10 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-4" pos="-7 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-5" pos="-4 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-6" pos="-1 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-8" pos="2 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-9" pos="5 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-10" pos="8 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-11" pos="11 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-12" pos="14 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
+    <geom conaffinity="1" condim="3" material="block" name="hurdle-13" pos="17 0 0.25" rgba="0.8 0.9 0.8 1" size=".1 1 0.15" type="box"/>
     <!-- END CUSTOM STUFF -->
   </worldbody>
   <actuator>
