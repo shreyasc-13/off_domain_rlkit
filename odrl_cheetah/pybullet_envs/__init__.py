@@ -210,10 +210,10 @@ register(id='HalfCheetahHurdleBulletEnv-v0',
          max_episode_steps=1000,
          reward_threshold=3000.0)
 
-# register(id='AntBulletEnv-v0',
-#          entry_point='pybullet_envs.gym_locomotion_envs:AntBulletEnv',
-#          max_episode_steps=1000,
-#          reward_threshold=2500.0)
+register(id='AntBulletEnv-v0',
+         entry_point='pybullet_envs.gym_locomotion_envs:AntBulletEnv',
+         max_episode_steps=1000,
+         reward_threshold=2500.0)
 #
 # register(id='HopperBulletEnv-v0',
 #          entry_point='pybullet_envs.gym_locomotion_envs:HopperBulletEnv',

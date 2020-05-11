@@ -5,10 +5,10 @@ from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import PathCollector
 
-from classifiers import classifier
+# from classifiers import classifier
+from classifiers import classifier_ensambler, classifier
 import torch
 import numpy as np
-#SHREYAS TODO: Move plotting libs elsewhere
 
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
@@ -17,18 +17,23 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             trainer,
             sim_exploration_env,
             real_exploration_env,
-            evaluation_env,
+            evaluation_sim_env,
+            evaluation_real_env,
             batch_size,
             max_path_length,
             num_epochs,
             num_eval_steps_per_epoch,
             # num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
-            evaluation_data_collector: PathCollector,
+            # evaluation_data_collector: PathCollector,
             sim_data_collector: PathCollector,
             real_data_collector: PathCollector,
+            eval_real_data_collector: PathCollector,
+            eval_sim_data_collector: PathCollector,
             sim_replay_buffer: ReplayBuffer,
             real_replay_buffer: ReplayBuffer,
+            eval_sim_replay_buffer: ReplayBuffer,
+            eval_real_replay_buffer: ReplayBuffer,
             num_real_steps_at_init=10000,
             num_sim_steps_at_init=0,
             num_real_steps_per_epoch=100,
@@ -41,16 +46,21 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_classifier_init_epoch=50,
             classifier_batch_size=1024,
 
-            hardcode_classifier=False
+            hardcode_classifier=False,
+
+            num_SA=0,
+            num_SAS=1,
     ):
         super().__init__(
             trainer,
             sim_exploration_env,
             real_exploration_env,
-            evaluation_env,
+            evaluation_sim_env,
+            evaluation_real_env,
             sim_data_collector,
             real_data_collector,
-            evaluation_data_collector,
+            eval_real_data_collector,
+            eval_sim_data_collector,
             sim_replay_buffer,
             real_replay_buffer,
             rl_on_real,
@@ -75,10 +85,15 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_classifier_init_epoch= num_classifier_init_epoch
         self.sim_exploration_env=sim_exploration_env
         self.real_exploration_env=real_exploration_env
-        self.evaluation_env=evaluation_env
+        # self.evaluation_env=evaluation_env
         self.training_SAC=False
 
         self.hardcode_classifier = hardcode_classifier
+
+        self.num_SAS = num_SAS
+        self.num_SA = num_SA
+        self.eval_sim_replay_buffer=eval_sim_replay_buffer
+        self.eval_real_replay_buffer=eval_real_replay_buffer
 
     def _train(self):
 
@@ -86,17 +101,22 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.SAC_burn_in_memory()
 
         #If our method: train the classifier on INIT replay buffer.
-        if not self.rl_on_real and self.num_sim_steps_at_init and self.num_real_steps_at_init :
-            sim_init_memory=self.sim_replay_buffer.random_batch(self.num_sim_steps_at_init )
-            real_init_memory=self.real_replay_buffer.random_batch(self.num_real_steps_at_init)
-
-            if self.hardcode_classifier:
-                self.classifier=classifier(hardcode=self.hardcode_classifier,  real_env=self.real_exploration_env, sim_env=self.sim_exploration_env,)
-            else:
-                self.classifier=classifier(real_env=self.real_exploration_env, sim_env=self.sim_exploration_env)
-                self.classifier.classifier_init_training( sim_init_memory,real_init_memory,
+        if not self.rl_on_real :
+            self.classifier=classifier_ensambler(num_SA=self.num_SA, num_SAS=self.num_SAS, hardcode=self.hardcode_classifier,  real_env=self.real_exploration_env, sim_env=self.sim_exploration_env)
+            if not self.hardcode_classifier and self.num_sim_steps_at_init and self.num_real_steps_at_init :
+                sim_init_memory=self.sim_replay_buffer.random_batch(self.num_sim_steps_at_init )
+                real_init_memory=self.real_replay_buffer.random_batch(self.num_real_steps_at_init)
+                eval_sim_init_memory=self.eval_sim_replay_buffer.random_batch(self.num_sim_steps_at_init )
+                eval_real_init_memory=self.eval_real_replay_buffer.random_batch(self.num_real_steps_at_init)
+            #     self.classifier=classifier(hardcode=self.hardcode_classifier,  real_env=self.real_exploration_env, sim_env=self.sim_exploration_env,)
+            # else:
+                # self.classifier=classifier(real_env=self.real_exploration_env, sim_env=self.sim_exploration_env)
+                self.classifier.classifier_init_training( sim_init_memory,real_init_memory, eval_sim_init_memory, eval_real_init_memory,
                                                             init_classifier_batch_size=self.classifier_batch_size,
                                                             num_epochs=self.num_classifier_init_epoch)
+
+        else:
+            self.classifer = None
 
 
         for epoch in gt.timed_for(range(self._start_epoch, self.num_epochs),save_itrs=True,):
@@ -105,12 +125,12 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             # collect real env evaluate steps. It will just stores the stats which will be used in logging with end_epoch.
             #putting end of epoch here because we also want to log at the very begining of the training.
 
-            self.eval_new_paths = self.eval_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_eval_steps_per_epoch,
-                discard_incomplete_paths=False,
-            )
-            gt.stamp('evaluation sampling')
+            # self.eval_new_paths = self.eval_data_collector.collect_new_paths(
+            #     self.max_path_length,
+            #     self.num_eval_steps_per_epoch,
+            #     discard_incomplete_paths=False,
+            # )
+            # gt.stamp('evaluation sampling')
 
             #for train_loops_per_epoch(SAC default: 1000, my default:1),
             for _ in range(self.num_train_loops_per_epoch):
@@ -130,11 +150,11 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         if not self.hardcode_classifier:
                             self.trainer.train(train_data,
                                             modify_reward=True,
-                                            classifier=self.classifier.SAS_Network.predict)
+                                            classifier=self.classifier.predict)
                         else:
                             self.trainer.train(train_data,
                                             modify_reward=True,
-                                            classifier=self.classifier.SAS_hardcode.predict)
+                                            classifier=self.classifier.hardcode_predict)
 
             if not self.rl_on_real and not self.hardcode_classifier:
                 #train the classifier with random samples from both the buffers
@@ -143,45 +163,80 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                         self.sim_replay_buffer.random_batch(self.classifier_batch_size),
                         self.real_replay_buffer.random_batch(self.classifier_batch_size)
                         )
+
+                for _ in range(self.num_classifier_train_steps_per_iter):
+                    self.classifier.classifier_val_from_batch(
+                        self.eval_sim_replay_buffer.random_batch(self.classifier_batch_size),
+                        self.eval_real_replay_buffer.random_batch(self.classifier_batch_size)
+                        )
+
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
 
-            #Shreyas TODO: Fix evaluation for half_cheetah: Needed for plotting
-            # self.eval_new_paths=self.evaluate(epoch)
+            self.evaluate()
 
             self._end_epoch(epoch) # logs all statistics
 
 
     def SAC_burn_in_memory(self):
 
-        # Filling real replay buffer at the start with the real world steps
-        if self.num_real_steps_at_init:
-            init_real_expl_paths = self.real_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_real_steps_at_init,
-                discard_incomplete_paths=False,
-            )
-            self.real_replay_buffer.add_paths(init_real_expl_paths)
-            # print(self.num_real_steps_at_init, len(init_real_expl_paths), self.max_episode_steps)
-            # self.num_real_steps_total+=self.num_real_steps_at_init
-            self.real_data_collector.end_epoch(-1)
+        # # Filling real replay buffer at the start with the real world steps
+        # if self.num_real_steps_at_init:
+        #     init_real_expl_paths = self.real_data_collector.collect_new_paths(
+        #         self.max_path_length,
+        #         self.num_real_steps_at_init,
+        #         discard_incomplete_paths=False,
+        #     )
+        #     self.real_replay_buffer.add_paths(init_real_expl_paths)
+        #     # print(self.num_real_steps_at_init, len(init_real_expl_paths), self.max_episode_steps)
+        #     # self.num_real_steps_total+=self.num_real_steps_at_init
+        #     self.real_data_collector.end_epoch(-1)
+        #
+        # # Filling sim replay buffer at the start with the sim world steps
+        # if not self.rl_on_real and self.num_sim_steps_at_init:
+        #     init_sim_expl_paths = self.sim_data_collector.collect_new_paths(
+        #         self.max_path_length,
+        #         self.num_sim_steps_at_init,
+        #         discard_incomplete_paths=False,
+        #     )
+        #     self.sim_replay_buffer.add_paths(init_sim_expl_paths)
+        #     self.sim_data_collector.end_epoch(-1)
 
-        # Filling sim replay buffer at the start with the sim world steps
-        if not self.rl_on_real and self.num_sim_steps_at_init:
-            init_sim_expl_paths = self.sim_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_sim_steps_at_init,
-                discard_incomplete_paths=False,
-            )
-            self.sim_replay_buffer.add_paths(init_sim_expl_paths)
-            self.sim_data_collector.end_epoch(-1)
+        max_steps= self.max_path_length
 
-    def evaluate(self, epoch):
-        '''
-        Shreyas TODO: To implement for half_cheetah - if a custom eval is needed
-        Currently logging eval env stats
-        '''
-        pass
+        items=[(self.real_data_collector,      self.num_real_steps_at_init,self.real_replay_buffer) ,
+               (self.eval_real_data_collector, self.num_real_steps_at_init,self.eval_real_replay_buffer)]
+        if not self.rl_on_real:
+            items.append((self.sim_data_collector,      self.num_sim_steps_at_init, self.sim_replay_buffer))
+            items.append((self.eval_sim_data_collector, self.num_sim_steps_at_init, self.eval_sim_replay_buffer))
+
+        for collector, init_steps, replay_buffer in items:
+            if init_steps:
+                paths=collector.collect_new_paths(
+                max_steps,
+                init_steps,
+                discard_incomplete_paths=False
+                )
+            replay_buffer.add_paths(paths)
+            collector.end_epoch(-1)
+
+
+
+    def evaluate(self):
+        self.eval_real_new_paths=self.eval_real_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_steps_per_epoch,
+                discard_incomplete_paths=False
+            )
+        self.eval_real_replay_buffer.add_paths(self.eval_real_new_paths)
+
+        self.eval_sim_new_paths=self.eval_sim_data_collector.collect_new_paths(
+                    self.max_path_length,
+                    self.max_path_length*2, # just devided by 5 to save some computation as eval on sim world is less imp than eval on real world
+                    discard_incomplete_paths=False,
+                )
+        self.eval_sim_replay_buffer.add_paths(self.eval_sim_new_paths)
+
 
     def add_new_experince_to_buffer(self):
         new_sim_paths, new_real_paths=None, None

@@ -11,6 +11,7 @@ from odrl_cheetah import pybullet_envs
 from rlkit.envs.wrappers import NormalizedBoxEnv
 import gym
 from gym import wrappers
+import pickle
 
 filename = str(uuid.uuid4())
 
@@ -29,16 +30,28 @@ def simulate_policy(args):
     if args.gpu:
         set_gpu_mode(True)
         policy.cuda()
-    while True:
+    # while True:
+    #     path = rollout(
+    #         env,
+    #         policy,
+    #         max_path_length=args.H,
+    #         render=True,
+    #     )
+        # if hasattr(env, "log_diagnostics"):
+        #     env.log_diagnostics([path])
+        # logger.dump_tabular()
+    paths = []
+    for _ in range(10):
         path = rollout(
             env,
             policy,
             max_path_length=args.H,
-            render=True,
+            render=False,
         )
-        # if hasattr(env, "log_diagnostics"):
-        #     env.log_diagnostics([path])
-        # logger.dump_tabular()
+        paths.append(path)
+
+    with open('../temp_odrl.pkl', 'wb') as f:
+        pickle.dump(paths, f)
 
 
 if __name__ == "__main__":

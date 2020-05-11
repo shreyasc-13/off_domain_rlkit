@@ -11,7 +11,6 @@ import torch
 import torch.optim as optim
 from torch import nn as nn
 import copy
-# from classifiers import get_data, mixer, convert_to_SAS_input_form, SAS_loader, Network, Networks, init_model, DataLoader
 
 '''
 Class for running SAC with option of reward shaping
@@ -42,7 +41,8 @@ class SACTrainer(TorchTrainer):
             target_entropy=None,
             classifier=None,
 
-            real_reward_scaleup=1.
+            real_reward_scaleup=1.,
+            SA=False
 
     ):
         super().__init__()
@@ -54,6 +54,7 @@ class SACTrainer(TorchTrainer):
         self.target_qf2 = target_qf2
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
+        self.SA = SA
 
         self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
         if self.use_automatic_entropy_tuning:
@@ -106,9 +107,11 @@ class SACTrainer(TorchTrainer):
         if modify_reward:
             classifier_input=  torch.cat((obs, actions), 1)
             classifier_input=  torch.cat((classifier_input, next_obs), 1)
-            outSAS=classifier(classifier_input)
+            outSAS, outSA =classifier(classifier_input)
             # deltaR= (torch.log(outSAS[:, 1]) - torch.log(outSAS[:, 0])).reshape((-1,1))
-            deltaR= (outSAS[:, 1] - outSAS[:, 0]).reshape((-1,1))
+            deltaR = (outSAS[:, 1] - outSAS[:, 0]).reshape((-1,1))
+            if self.SA:
+                deltaR -= (outSA[:, 1] - outSA[:, 0]).reshape((-1,1))
             #Shreyas edit: Adding a scale up factor for real rewards
             rewards = self.real_reward_scaleup * rewards + deltaR
         """

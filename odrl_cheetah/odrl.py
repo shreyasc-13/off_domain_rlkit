@@ -14,7 +14,7 @@ from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 # from half_cheetah import HalfCheetahEnv
-from pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv, HalfCheetahHurdleBulletEnv
+from pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv, HalfCheetahHurdleBulletEnv, AntBulletEnv
 from pybullet_envs.gym_manipulator_envs import ReacherBulletEnv, ReacherObstacleBulletEnv
 from pybullet_envs.kukaGymEnv import KukaGymEnv
 from plot_scripts import plotting_evalreturns
@@ -72,11 +72,19 @@ def experiment(variant, envs):
         hidden_sizes=[M, M],
     )
     # eval_policy = MakeDeterministic(policy)
-    eval_path_collector = MdpPathCollector(
+    # eval_path_collector = MdpPathCollector(
+    #     real_eval_env,
+    #     policy,
+    #     max_episode_steps
+    # )
+    eval_real_path_collector = MdpPathCollector(
         real_eval_env,
         policy,
-        max_episode_steps
-    )
+        max_episode_steps    )
+    eval_sim_path_collector = MdpPathCollector(
+        sim_eval_env,
+        policy,
+        max_episode_steps    )
     real_path_collector = MdpPathCollector(
         real_expl_env,
         policy,
@@ -95,6 +103,14 @@ def experiment(variant, envs):
         variant['replay_buffer_size'],
         real_expl_env,
     )
+    eval_sim_replay_buffer= EnvReplayBuffer(
+        variant['replay_buffer_size'],
+        sim_eval_env,
+    )
+    eval_real_replay_buffer= EnvReplayBuffer(
+        variant['replay_buffer_size'],
+        real_eval_env,
+    )
     trainer_env= real_expl_env if variant['rl_on_real']==True else sim_expl_env
     trainer = SACTrainer(
         env=trainer_env,
@@ -109,22 +125,27 @@ def experiment(variant, envs):
         trainer=trainer,
         sim_exploration_env=sim_expl_env,
         real_exploration_env=real_expl_env,
-        evaluation_env=real_eval_env,
+        evaluation_sim_env=sim_eval_env,
+        evaluation_real_env=real_eval_env,
         batch_size=variant['algorithm_kwargs']['batch_size'],
         max_path_length=variant['algorithm_kwargs']['max_path_length'],
         # max_episode_steps=variant['algorithm_kwargs']['max_episode_length'],
         num_epochs=variant['algorithm_kwargs']['num_epochs'],
         num_eval_steps_per_epoch=variant['algorithm_kwargs']['num_eval_steps_per_epoch'],
         num_trains_per_train_loop=variant['algorithm_kwargs']['num_trains_per_train_loop'],
-        evaluation_data_collector=eval_path_collector,
+        eval_real_data_collector=eval_real_path_collector,
+        eval_sim_data_collector=eval_sim_path_collector,
         sim_data_collector= sim_path_collector,
         real_data_collector=real_path_collector,
         sim_replay_buffer=sim_replay_buffer,
         real_replay_buffer= real_replay_buffer,
+        eval_sim_replay_buffer=eval_sim_replay_buffer,
+        eval_real_replay_buffer= eval_real_replay_buffer,
+
         num_real_steps_at_init=     1000    if variant['rl_on_real'] else 20000,
         num_sim_steps_at_init=      1000      if variant['rl_on_real'] else 20000,
-        num_real_steps_per_epoch=   1000     if variant['rl_on_real'] else 500 if variant['num_classifier_train_steps_per_iter'] else 0,
-        num_sim_steps_per_epoch=    0       if variant['rl_on_real'] else 500,
+        num_real_steps_per_epoch=   1000     if variant['rl_on_real'] else 100 if variant['num_classifier_train_steps_per_iter'] else 0,
+        num_sim_steps_per_epoch=    0       if variant['rl_on_real'] else 100,
         num_rl_train_steps_per_iter=1,
 
         rl_on_real=variant['rl_on_real'],
@@ -134,7 +155,9 @@ def experiment(variant, envs):
         num_classifier_init_epoch=variant['num_classifier_init_epoch'],
         classifier_batch_size=512,
 
-        hardcode_classifier=variant['hardcode_classifier']
+        hardcode_classifier=variant['hardcode_classifier'],
+        num_SA=variant['num_SA'] ,
+        num_SAS=variant['num_SAS']
         # **variant['algorithm_kwargs']
     )
     algorithm.to(ptu.device)
@@ -142,7 +165,8 @@ def experiment(variant, envs):
 
 env_dict = {
     'cheetah': [HalfCheetahBulletEnv(), HalfCheetahHurdleBulletEnv()],
-    'reacher': [ReacherBulletEnv(), ReacherObstacleBulletEnv()]
+    'reacher': [ReacherBulletEnv(), ReacherObstacleBulletEnv()],
+    'ant':[AntBulletEnv(), AntBulletEnv()]
 }
 
 def str2bool(v):
@@ -183,8 +207,8 @@ if __name__ == "__main__":
             num_trains_per_train_loop=num_trains_per_train_loop,
             # num_expl_steps_per_train_loop=1000,
             # min_num_steps_before_training=1000,
-            max_path_length=300,
-            max_episode_length=300, #Shreyas Note: Needs to be tweaked: Possibly redundant
+            max_path_length=1000,
+            max_episode_length=1000, #Shreyas Note: Needs to be tweaked: Possibly redundant
             batch_size=256,
         ),
         trainer_kwargs=dict(
@@ -195,13 +219,16 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
-            real_reward_scaleup=real_reward_scaleup #Shreyas edit
+            real_reward_scaleup=real_reward_scaleup, #Shreyas edit
+            SA=False #use SA classifiers
         ),
         rl_on_real=rl_on_real,
-        num_classifier_train_steps_per_iter=100,
+        num_classifier_train_steps_per_iter=20,
         num_classifier_init_epoch=50,
 
-        hardcode_classifier=False
+        hardcode_classifier=False,
+        num_SA=0,
+        num_SAS=1
     )
     log_name = '{}_{}_{}'.format(args.env, 'real' if args.rl_on_real else 'sim', args.log_dir) #EDIT EACH TIME!!! #ori: 0.25
     # log_name = 'rl_realenv_cpu'

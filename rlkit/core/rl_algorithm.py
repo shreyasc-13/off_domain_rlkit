@@ -27,10 +27,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             trainer,
             sim_exploration_env,
             real_exploration_env,
-            evaluation_env,
+            evaluation_sim_env,
+            evaluation_real_env,
             sim_data_collector: DataCollector,
             real_data_collector: DataCollector,
-            evaluation_data_collector: DataCollector,
+            # evaluation_data_collector: DataCollector,
+            eval_real_data_collector:DataCollector,
+            eval_sim_data_collector:DataCollector,
             sim_replay_buffer: ReplayBuffer,
             real_replay_buffer: ReplayBuffer,
             rl_on_real,
@@ -38,11 +41,13 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         self.trainer = trainer
         self.sim_expl_env = sim_exploration_env
         self.real_expl_env=real_exploration_env
-        self.eval_env = evaluation_env
+        self.eval_sim_env = evaluation_sim_env
+        self.eval_real_env = evaluation_real_env
 
         self.sim_data_collector = sim_data_collector
         self.real_data_collector = real_data_collector
-        self.eval_data_collector = evaluation_data_collector
+        self.eval_real_data_collector = eval_real_data_collector
+        self.eval_sim_data_collector= eval_sim_data_collector
         self.sim_replay_buffer = sim_replay_buffer
         self.real_replay_buffer= real_replay_buffer
         self._start_epoch = 0
@@ -67,7 +72,8 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
         self.sim_data_collector.end_epoch(epoch)
         self.real_data_collector.end_epoch(epoch)
-        self.eval_data_collector.end_epoch(epoch)
+        self.eval_sim_data_collector.end_epoch(epoch)
+        self.eval_real_data_collector.end_epoch(epoch)
         self.sim_replay_buffer.end_epoch(epoch)
         self.real_replay_buffer.end_epoch(epoch)
         self.trainer.end_epoch(epoch)
@@ -83,8 +89,10 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
             snapshot['sim_exploration/' + k] = v
         for k, v in self.real_data_collector.get_snapshot().items():
             snapshot['real_exploration/' + k] = v
-        for k, v in self.eval_data_collector.get_snapshot().items():
-            snapshot['evaluation/' + k] = v
+        for k, v in self.eval_sim_data_collector.get_snapshot().items():
+            snapshot['sim_evaluation/' + k] = v
+        for k, v in self.eval_real_data_collector.get_snapshot().items():
+            snapshot['real_evaluation/' + k] = v
         for k, v in self.real_replay_buffer.get_snapshot().items():
             snapshot['real_replay_buffer/' + k] = v
         for k, v in self.sim_replay_buffer.get_snapshot().items():
@@ -130,7 +138,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                         prefix='sim_exploration/',
                     )
                 logger.record_dict(
-                    eval_util.get_generic_path_information(sim_expl_paths),
+                    eval_util.get_generic_path_information(sim_expl_paths, self.rl_on_real, classifier=self.classifier.predict if not self.rl_on_real else None ),
                     prefix="sim_exploration/",
                 )
 
@@ -146,37 +154,55 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                     self.real_expl_env.get_diagnostics(real_expl_paths),
                     prefix='real_exploration/',
                 )
+            # print(real_expl_paths)
             logger.record_dict(
-                eval_util.get_generic_path_information(real_expl_paths),
+                eval_util.get_generic_path_information(real_expl_paths, self.rl_on_real, classifier=self.classifier.predict if not self.rl_on_real else None),
                 prefix="real_exploration/",
             )
 
         else:
             prefix='real_exploration/'
-
         """
         Evaluation
         """
-        #Shreyas TODO: Fix eval logging
-
         logger.record_dict(
-            self.eval_data_collector.get_diagnostics(),
-            prefix='evaluation/',
+            self.eval_real_data_collector.get_diagnostics(),
+            prefix='eval_real/',
         )
-        eval_paths = self.eval_data_collector.get_epoch_paths()
-        if hasattr(self.eval_env, 'get_diagnostics'):
+        eval_paths = self.eval_real_data_collector.get_epoch_paths()
+        if hasattr(self.eval_real_env, 'get_diagnostics'):
             logger.record_dict(
-                self.eval_env.get_diagnostics(eval_paths),
-                prefix='evaluation/',
+                self.eval_real_env.get_diagnostics(eval_paths),
+                prefix='eval_real/',
             )
         logger.record_dict(
-            eval_util.get_generic_path_information(eval_paths),
-            prefix="evaluation/",
+            eval_util.get_generic_path_information(eval_paths, self.rl_on_real,classifier=self.classifier.predict if not self.rl_on_real else None),
+            prefix="eval_real/",
         )
+
+
+        logger.record_dict(
+            self.eval_sim_data_collector.get_diagnostics(),
+            prefix='eval_sim/',
+        )
+        eval_paths = self.eval_sim_data_collector.get_epoch_paths()
+        if hasattr(self.eval_sim_env, 'get_diagnostics'):
+            logger.record_dict(
+                self.eval_sim_env.get_diagnostics(eval_paths),
+                prefix='eval_sim/',
+            )
+        logger.record_dict(
+            eval_util.get_generic_path_information(eval_paths, self.rl_on_real, classifier=self.classifier.predict if not self.rl_on_real else None),
+            prefix="eval_sim/",
+        )
+
+        logger.record_dict( OrderedDict([('num_trains_per_train_loop', self.num_train_loops_per_epoch)]),
+            prefix="")
 
         """
         Misc
         """
+
         gt.stamp('logging')
         logger.record_dict(_get_epoch_timings())
         logger.record_tabular('Epoch', epoch)

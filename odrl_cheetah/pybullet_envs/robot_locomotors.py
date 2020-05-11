@@ -8,7 +8,7 @@ from robot_bases import BodyPart
 
 class WalkerBase(MJCFBasedRobot):
 
-  def __init__(self, fn, robot_name, action_dim, obs_dim, power, is_real):
+  def __init__(self, fn, robot_name, action_dim, obs_dim, power, is_real=True):
     MJCFBasedRobot.__init__(self, fn, robot_name, action_dim, obs_dim, is_real)
     self.power = power
     self.camera_x = 0
@@ -171,14 +171,14 @@ class HalfCheetahHurdle(WalkerBase):
       self.jdict["ffoot"].power_coef = 30.0
 
 
-# class Ant(WalkerBase):
-#   foot_list = ['front_left_foot', 'front_right_foot', 'left_back_foot', 'right_back_foot']
-#
-#   def __init__(self):
-#     WalkerBase.__init__(self, "ant.xml", "torso", action_dim=8, obs_dim=28, power=2.5)
-#
-#   def alive_bonus(self, z, pitch):
-#     return +1 if z > 0.26 else -1  # 0.25 is central sphere rad, die if it scrapes the ground
+class Ant(WalkerBase):
+  foot_list = ['front_left_foot', 'front_right_foot', 'left_back_foot', 'right_back_foot']
+
+  def __init__(self):
+    WalkerBase.__init__(self, "assets/ant.xml", "torso", action_dim=8, obs_dim=28, power=2.5)
+
+  def alive_bonus(self, z, pitch):
+    return +1 if z > 0.26 else -1  # 0.25 is central sphere rad, die if it scrapes the ground
 #
 #
 # class Humanoid(WalkerBase):
