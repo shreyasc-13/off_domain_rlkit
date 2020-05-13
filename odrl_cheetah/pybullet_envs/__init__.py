@@ -214,6 +214,17 @@ register(id='AntBulletEnv-v0',
          entry_point='pybullet_envs.gym_locomotion_envs:AntBulletEnv',
          max_episode_steps=1000,
          reward_threshold=2500.0)
+
+register(id='AntGoalBulletEnv-v0',
+         entry_point='pybullet_envs.gym_locomotion_envs:AntGoalBulletEnv',
+         max_episode_steps=1000,
+         reward_threshold=2500.0)
+
+register(id='AntGoalObstacleBulletEnv-v0',
+         entry_point='pybullet_envs.gym_locomotion_envs:AntGoalObstacleBulletEnv',
+         max_episode_steps=1000,
+         reward_threshold=2500.0)
+
 #
 # register(id='HopperBulletEnv-v0',
 #          entry_point='pybullet_envs.gym_locomotion_envs:HopperBulletEnv',

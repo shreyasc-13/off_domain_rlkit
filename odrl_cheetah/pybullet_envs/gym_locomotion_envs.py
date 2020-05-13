@@ -4,7 +4,7 @@ import numpy as np
 import pybullet
 # from robot_locomotors import Hopper, Walker2D, HalfCheetah, Ant, Humanoid, HumanoidFlagrun, HumanoidFlagrunHarder
 #Shreyas edit
-from robot_locomotors import HalfCheetah, HalfCheetahHurdle, Ant
+from robot_locomotors import HalfCheetah, HalfCheetahHurdle, Ant, AntGoal, AntGoalObstacle
 
 
 class WalkerBaseBulletEnv(MJCFBaseBulletEnv):
@@ -172,8 +172,21 @@ class AntBulletEnv(WalkerBaseBulletEnv):
   def __init__(self, render=False):
     self.robot = Ant()
     WalkerBaseBulletEnv.__init__(self, self.robot, render)
-#
-#
+
+
+class AntGoalBulletEnv(WalkerBaseBulletEnv):
+
+  def __init__(self, render=False):
+    self.robot = AntGoal()
+    WalkerBaseBulletEnv.__init__(self, self.robot, render)
+
+
+class AntGoalObstacleBulletEnv(WalkerBaseBulletEnv):
+
+  def __init__(self, render=False):
+    self.robot = AntGoalObstacle()
+    WalkerBaseBulletEnv.__init__(self, self.robot, render)
+
 # class HumanoidBulletEnv(WalkerBaseBulletEnv):
 #
 #   def __init__(self, robot=Humanoid(), render=False):

@@ -14,7 +14,7 @@ from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 # from half_cheetah import HalfCheetahEnv
-from pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv, HalfCheetahHurdleBulletEnv, AntBulletEnv
+from pybullet_envs.gym_locomotion_envs import HalfCheetahBulletEnv, HalfCheetahHurdleBulletEnv, AntBulletEnv, AntGoalBulletEnv, AntGoalObstacleBulletEnv
 from pybullet_envs.gym_manipulator_envs import ReacherBulletEnv, ReacherObstacleBulletEnv
 from pybullet_envs.kukaGymEnv import KukaGymEnv
 from plot_scripts import plotting_evalreturns
@@ -166,7 +166,7 @@ def experiment(variant, envs):
 env_dict = {
     'cheetah': [HalfCheetahBulletEnv(), HalfCheetahHurdleBulletEnv()],
     'reacher': [ReacherBulletEnv(), ReacherObstacleBulletEnv()],
-    'ant':[AntBulletEnv(), AntBulletEnv()]
+    'ant':[AntGoalBulletEnv(), AntGoalObstacleBulletEnv()]
 }
 
 def str2bool(v):
@@ -207,8 +207,8 @@ if __name__ == "__main__":
             num_trains_per_train_loop=num_trains_per_train_loop,
             # num_expl_steps_per_train_loop=1000,
             # min_num_steps_before_training=1000,
-            max_path_length=1000,
-            max_episode_length=1000, #Shreyas Note: Needs to be tweaked: Possibly redundant
+            max_path_length=900,
+            max_episode_length=900, #Shreyas Note: Needs to be tweaked: Possibly redundant
             batch_size=256,
         ),
         trainer_kwargs=dict(

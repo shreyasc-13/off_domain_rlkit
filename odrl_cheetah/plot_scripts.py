@@ -9,8 +9,8 @@ def plotting_evalreturns(log_dir, rl_on_real):
     '''
     data = pd.read_csv(log_dir+'/progress.csv')
 
-    returns_avg = data['evaluation/Returns Mean']
-    returns_std = data['evaluation/Returns Std']
+    returns_avg = data['eval_real/Returns Mean']
+    returns_std = data['eval_real/Returns Std']
 
     path_length = returns_avg.shape[0]
 

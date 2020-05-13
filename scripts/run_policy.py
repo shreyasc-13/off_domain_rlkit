@@ -18,40 +18,41 @@ filename = str(uuid.uuid4())
 
 def simulate_policy(args):
     data = torch.load(args.file, map_location=torch.device('cpu'))
-    policy = data['evaluation/policy']
+    policy = data['real_evaluation/policy']
     # env = data['evaluation/env'] #Commented out to load the right modifed pybullet env
     #Shreyas edit: ^ and v: To change for a different env
     # env = NormalizedBoxEnv(HalfCheetahBulletEnv(is_real=True))
     # env = NormalizedBoxEnv(gym.make('HalfCheetahHurdleBulletEnv-v0'))
-    env = gym.make('ReacherObstacleBulletEnv-v0')
+    # env = gym.make('ReacherObstacleBulletEnv-v0')
+    env = gym.make('AntBulletEnv-v0')
     # env = gym.make('PusherBulletEnv-v0')
     # env = wrappers.Monitor(env, '~/Destop/', force=True) #TODO: add render saving
     print("Policy loaded")
     if args.gpu:
         set_gpu_mode(True)
         policy.cuda()
-    # while True:
-    #     path = rollout(
-    #         env,
-    #         policy,
-    #         max_path_length=args.H,
-    #         render=True,
-    #     )
-        # if hasattr(env, "log_diagnostics"):
-        #     env.log_diagnostics([path])
-        # logger.dump_tabular()
-    paths = []
-    for _ in range(10):
+    while True:
         path = rollout(
             env,
             policy,
             max_path_length=args.H,
-            render=False,
+            render=True,
         )
-        paths.append(path)
-
-    with open('../temp_odrl.pkl', 'wb') as f:
-        pickle.dump(paths, f)
+        # if hasattr(env, "log_diagnostics"):
+        #     env.log_diagnostics([path])
+        # logger.dump_tabular()
+    # paths = []
+    # for _ in range(10):
+    #     path = rollout(
+    #         env,
+    #         policy,
+    #         max_path_length=args.H,
+    #         render=False,
+    #     )
+    #     paths.append(path)
+    #
+    # with open('../temp_odrl.pkl', 'wb') as f:
+    #     pickle.dump(paths, f)
 
 
 if __name__ == "__main__":
