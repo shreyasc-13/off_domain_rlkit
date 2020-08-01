@@ -1,5 +1,8 @@
-# RLkit
-Reinforcement learning framework and algorithms implemented in PyTorch.
+# DARC pyTorch code (under development, please go to https://github.com/google-research/google-research/tree/master/darc for latest code, and to reproduce experiements on the paper)  
+Off-Dynamics Reinforcement Learning: Training for Transfer with Domain Classifiers
+Paper: https://arxiv.org/abs/2006.13916
+
+Reinforcement learning frameworks and algorithms implemented in PyTorch.
 
 Implemented algorithms:
  - Skew-Fit
