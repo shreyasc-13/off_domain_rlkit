@@ -1,7 +1,7 @@
 # DARC pyTorch code
 Off-Dynamics Reinforcement Learning (ODRL): Training for Transfer with Domain Classifiers
 
-This code is in development, please go to https://github.com/google-research/google-research/tree/master/darc for latest code, and to reproduce experiments on the paper) 
+This code is in development, please go to https://github.com/google-research/google-research/tree/master/darc for latest code, and to reproduce experiments on the paper.
 
 Paper: https://arxiv.org/abs/2006.13916
 
